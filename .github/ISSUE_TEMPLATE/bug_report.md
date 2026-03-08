@@ -1,36 +1,8 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: "🐛 버그 리포트 (구버전)"
+about: "새 폼 양식(bug_report.yml)을 사용해 주세요."
 title: ''
 labels: bug
-assignees: ''
-
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
-
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
-
-**Expected behavior**
-A clear and concise description of what you expected to happen.
-
-**Actual behavior**
-A clear and concise description of what you experienced.
-
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
-
-**Version info (please complete the following information):**
-<!-- latest is not correct version name. use commit hash. -->
- - OS: [e.g. iOS]
- - PocketMine-MP Version:
- - CustomItemLoader Version:
-
-**Additional context**
-Add any other context about the problem here.
+> ⚠️ 이 템플릿은 구버전입니다. 이슈 선택 화면에서 **🐛 버그 리포트** 양식을 사용해 주세요.

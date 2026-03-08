@@ -1,1 +1,109 @@
-items: []
+# ┌──────────────────────────────────────────────────────────┐
+# │              CustomLoader  Configuration                 │
+# │    YAML 설정으로 커스텀 아이템·블록·엔티티를 등록하세요     │
+# │    자세한 설명은 CONFIGURATION.md 를 참고하세요.           │
+# └──────────────────────────────────────────────────────────┘
+
+# ══════════════════════════════════
+#  🗡️  ITEMS (커스텀 아이템)
+# ══════════════════════════════════
+# namespace : 필수. "팩이름:아이템id" 형식
+# texture   : 필수. textures/items/ 기준 파일명 (확장자 제외)
+# 타입별 옵션: durable / food / armor / tool
+# 상세 옵션 → CONFIGURATION.md
+items: {}
+
+#  예시:
+#  ruby_sword:
+#    namespace: "mypack:ruby_sword"
+#    texture: "ruby_sword"
+#    attack_points: 10
+#    hand_equipped: true
+#    durable: true
+#    max_durability: 1000
+#    add_creative_inventory: true
+#
+#  magic_cake:
+#    namespace: "mypack:magic_cake"
+#    texture: "magic_cake"
+#    food: true
+#    nutrition: 8
+#    saturation: 10.0
+#    can_always_eat: true
+#    add_creative_inventory: true
+#
+#  ruby_helmet:
+#    namespace: "mypack:ruby_helmet"
+#    texture: "ruby_helmet"
+#    armor: true
+#    defence_points: 3
+#    armor_slot: helmet        # helmet / chest / leggings / boots
+#    armor_class: diamond
+#    durable: true
+#    max_durability: 363
+#    add_creative_inventory: true
+
+
+# ══════════════════════════════════
+#  🧱  BLOCKS (커스텀 블록)
+# ══════════════════════════════════
+# namespace  : 필수. "팩이름:블록id" 형식
+# texture    : 필수. textures/blocks/ 기준 파일명 (확장자 제외)
+# tool_type  : pickaxe / axe / shovel / hoe / sword / shears / none
+# tool_tier  : 1=나무 2=금 3=돌 4=철 5=다이아
+# 상세 옵션 → CONFIGURATION.md
+blocks: {}
+
+#  예시:
+#  ruby_ore:
+#    namespace: "mypack:ruby_ore"
+#    texture: "ruby_ore"
+#    hardness: 3.0
+#    blast_resistance: 3.0
+#    tool_type: "pickaxe"
+#    tool_tier: 2
+#    drops:
+#      - id: "mypack:ruby_gem"
+#        count: 1
+#        chance: 1.0
+#
+#  crystal_block:
+#    namespace: "mypack:crystal_block"
+#    texture: "crystal_block"
+#    hardness: 2.0
+#    tool_type: "pickaxe"
+#    tool_tier: 1
+#    light_emission: 10
+
+
+# ══════════════════════════════════
+#  🐾  ENTITIES (커스텀 엔티티)
+# ══════════════════════════════════
+# namespace       : 필수. "팩이름:엔티티id" 형식
+# texture         : 필수. textures/entity/ 기준 파일명 (확장자 제외)
+# goals > type    : float / random_stroll / melee_attack /
+#                   look_at_entity / hurt_by_target / nearest_attackable
+# priority        : 낮을수록 우선도 높음
+# 상세 옵션 → CONFIGURATION.md
+entities: {}
+
+#  예시:
+#  ruby_golem:
+#    namespace: "mypack:ruby_golem"
+#    texture: "ruby_golem"
+#    width: 1.4
+#    height: 2.9
+#    max_health: 100
+#    attack_damage: 15.0
+#    movement_speed: 0.25
+#    goals:
+#      - { type: float,              priority: 0 }
+#      - { type: hurt_by_target,     priority: 1 }
+#      - { type: melee_attack,       priority: 2, speed_modifier: 0.8 }
+#      - { type: nearest_attackable, priority: 3, distance: 20.0, target: player }
+#      - { type: random_stroll,      priority: 7, speed_modifier: 1.0 }
+#      - { type: look_at_entity,     priority: 8, look_distance: 10.0 }
+#    drops:
+#      - id: "mypack:ruby_gem"
+#        count: 3
+#        chance: 1.0

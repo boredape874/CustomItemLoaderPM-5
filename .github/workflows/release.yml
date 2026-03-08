@@ -1,0 +1,52 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    name: Build Plugin .phar
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.1"
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --no-interaction --prefer-dist
+
+      - name: Build .phar
+        run: |
+          TAG="${{ github.ref_name }}"
+          PHAR_NAME="CustomLoader-${TAG}.phar"
+
+          php -r "
+          \$phar = new Phar('${PHAR_NAME}');
+          \$phar->startBuffering();
+          \$phar->buildFromDirectory('.', '/^(?!.*(\\.git|\\.github|vendor\\/bin|tests\\/)).*\$/');
+          \$phar->setStub(\$phar->createDefaultStub('stub.php'));
+          \$phar->stopBuffering();
+          echo 'Built: ${PHAR_NAME}' . PHP_EOL;
+          "
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "CustomLoader-*.phar"
+          generate_release_notes: true
+          body: |
+            ## CustomLoader ${{ github.ref_name }}
+
+            ### 📥 설치 방법
+            1. `CustomLoader-${{ github.ref_name }}.phar` 다운로드
+            2. `plugins/` 폴더에 넣기
+            3. 서버 재시작
+
+            자세한 설정 방법은 [CONFIGURATION.md](./CONFIGURATION.md)를 참고하세요.

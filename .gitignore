@@ -1,0 +1,34 @@
+# Composer
+/vendor/
+composer.lock
+
+# Plugin data folders (generated at runtime)
+/plugins/CustomLoader/
+*.phar
+
+# Build output
+*.mcpack
+*.zip
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# PHP
+*.log
+/crash-*.log
+
+# PocketMine-MP server files (if testing locally)
+/server.properties
+/ops.txt
+/banned-players.txt
+/banned-ips.txt
+/white-list.txt
+/players/
+/worlds/
+/resource_packs/
+/pocketmine.yml

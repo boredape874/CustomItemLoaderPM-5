@@ -33,14 +33,14 @@ use pocketmine\item\Item;
 use pocketmine\item\StringToItemParser;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\network\mcpe\convert\TypeConverter;
-use pocketmine\network\mcpe\protocol\ItemRegistryPacket;
 use pocketmine\network\mcpe\protocol\types\CacheableNbt;
 use pocketmine\network\mcpe\protocol\types\ItemTypeEntry;
 use pocketmine\utils\SingletonTrait;
 use pocketmine\utils\Utils;
 use pocketmine\world\format\io\GlobalItemDataHandlers;
-use ReflectionProperty;
 use Throwable;
+use function class_uses;
+use function in_array;
 use function str_replace;
 use function strtolower;
 
@@ -160,8 +160,8 @@ final class CustomItemManager{
 		// TODO: Closure hack to access ItemDeserializer
 		// ItemDeserializer throws an Exception when we try to register a pre-existing item
 		(function() use ($item, $deserializeCallback, $namespace) : void{
-			if(isset($this->deserializers[$item->getName()])){
-				unset($this->deserializers[$item->getName()]);
+			if(isset($this->deserializers[$namespace])){
+				unset($this->deserializers[$namespace]);
 			}
 			$this->map($namespace, $deserializeCallback !== null ? $deserializeCallback : static fn(SavedItemData $_) => clone $item);
 		})->call($deserializer);

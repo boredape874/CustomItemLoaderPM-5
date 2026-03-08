@@ -1,0 +1,53 @@
+name: "✨ 기능 요청"
+description: "새 기능이나 개선 사항을 제안하고 싶을 때 사용하세요."
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        기능 요청을 작성해 주셔서 감사합니다!
+        아이디어를 최대한 구체적으로 설명해 주세요.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "현재 불편한 점"
+      description: "어떤 상황에서 불편함을 느끼셨나요?"
+      placeholder: "예: 엔티티에 피해를 받으면 특정 효과를 주고 싶은데 현재는 방법이 없습니다."
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: "원하는 기능"
+      description: "어떤 기능이 추가되기를 원하시나요?"
+      placeholder: "예: entities 설정에 on_hurt: 이벤트 핸들러를 추가해주세요."
+    validations:
+      required: true
+
+  - type: textarea
+    id: config_example
+    attributes:
+      label: "예상 config.yml 형식 (선택)"
+      description: "새 기능이 추가된다면 어떤 설정 형식이면 좋을지 작성해 주세요."
+      render: yaml
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: "중요도"
+      options:
+        - "낮음 — 있으면 좋겠지만 없어도 괜찮음"
+        - "보통 — 사용 편의성이 높아짐"
+        - "높음 — 현재 플러그인 사용에 지장이 있음"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "체크리스트"
+      options:
+        - label: "기존 이슈를 검색해 동일한 요청이 없음을 확인했습니다."
+          required: true

@@ -1,19 +1,104 @@
+# CustomLoader — 예시 config.yml
+# 이 파일을 plugins/CustomLoader/config.yml 로 복사하여 사용하세요.
+# 상세 설명은 CONFIGURATION.md 를 참고하세요.
+
 items:
-  facebook:
-    id: 1001
-    meta: 0
-    namespace: "custom:facebook"
-    name: facebook
-    allow_off_hand: true
-    max_stack_size: 64
-    texture: facebook
-    durable: false
-    max_durability: 64
-    mining_speed: 10
+
+  # ─── 내구도 검 ──────────────────────────
+  ruby_sword:
+    namespace: "example:ruby_sword"
+    texture: "ruby_sword"
+    attack_points: 10
+    hand_equipped: true
+    durable: true
+    max_durability: 1000
+    add_creative_inventory: true
+
+  # ─── 음식 ────────────────────────────────
+  magic_cake:
+    namespace: "example:magic_cake"
+    texture: "magic_cake"
     food: true
+    nutrition: 8
+    saturation: 10.0
     can_always_eat: true
-    nutrition: 10
-    saturation: 2
-    render_offset:
-      enabled: true
-      size: 512
+    add_creative_inventory: true
+
+  # ─── 방어구 ──────────────────────────────
+  ruby_helmet:
+    namespace: "example:ruby_helmet"
+    texture: "ruby_helmet"
+    armor: true
+    defence_points: 3
+    armor_slot: helmet
+    armor_class: diamond
+    durable: true
+    max_durability: 363
+    add_creative_inventory: true
+
+  # ─── 곡괭이 ──────────────────────────────
+  ruby_pickaxe:
+    namespace: "example:ruby_pickaxe"
+    texture: "ruby_pickaxe"
+    tool: true
+    tool_type: 4      # 곡괭이
+    tool_tier: 5      # 다이아몬드 등급
+    attack_points: 3
+    durable: true
+    max_durability: 1561
+    add_creative_inventory: true
+
+
+blocks:
+
+  # ─── 광석 ────────────────────────────────
+  ruby_ore:
+    namespace: "example:ruby_ore"
+    texture: "ruby_ore"
+    hardness: 3.0
+    blast_resistance: 3.0
+    tool_type: "pickaxe"
+    tool_tier: 2
+    drops:
+      - id: "example:ruby_gem"
+        count: 1
+        chance: 1.0
+      - id: "minecraft:cobblestone"
+        count: 1
+        chance: 0.3
+
+  # ─── 발광 블록 ────────────────────────────
+  crystal_block:
+    namespace: "example:crystal_block"
+    texture: "crystal_block"
+    hardness: 2.0
+    tool_type: "pickaxe"
+    tool_tier: 1
+    light_emission: 10
+
+
+entities:
+
+  # ─── 적대 몹 ─────────────────────────────
+  ruby_golem:
+    namespace: "example:ruby_golem"
+    texture: "ruby_golem"
+    width: 1.4
+    height: 2.9
+    max_health: 100
+    attack_damage: 15.0
+    movement_speed: 0.25
+    goals:
+      - { type: float,              priority: 0 }
+      - { type: hurt_by_target,     priority: 1 }
+      - { type: melee_attack,       priority: 2, speed_modifier: 0.8 }
+      - { type: nearest_attackable, priority: 3, distance: 20.0, target: player }
+      - { type: random_stroll,      priority: 7, speed_modifier: 1.0 }
+      - { type: look_at_entity,     priority: 8, look_distance: 10.0 }
+    drops:
+      - id: "example:ruby_gem"
+        count: 3
+        chance: 1.0
+      - id: "minecraft:experience_bottle"
+        count: 5
+        chance: 0.5

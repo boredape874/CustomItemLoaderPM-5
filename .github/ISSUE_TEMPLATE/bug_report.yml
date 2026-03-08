@@ -1,0 +1,81 @@
+name: "🐛 버그 리포트"
+description: "버그나 오류를 발견했을 때 사용하세요."
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        버그 리포트를 작성해 주셔서 감사합니다!
+        아래 항목을 최대한 자세히 작성해 주세요.
+
+  - type: input
+    id: pm_version
+    attributes:
+      label: "PocketMine-MP 버전"
+      description: "서버의 PM5 버전을 입력하세요 (예: 5.41.0)"
+      placeholder: "5.x.x"
+    validations:
+      required: true
+
+  - type: input
+    id: plugin_version
+    attributes:
+      label: "플러그인 버전"
+      description: "plugin.yml의 version 항목"
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: input
+    id: php_version
+    attributes:
+      label: "PHP 버전"
+      description: "서버에서 사용 중인 PHP 버전"
+      placeholder: "8.1.x"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "버그 설명"
+      description: "무슨 일이 발생했나요? 예상 동작과 실제 동작을 설명해 주세요."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: "재현 방법"
+      description: "버그를 재현하는 순서를 알려주세요."
+      placeholder: |
+        1. config.yml에 ... 설정 후
+        2. 서버 재시작
+        3. /cl create ...
+        4. 오류 발생
+    validations:
+      required: true
+
+  - type: textarea
+    id: config
+    attributes:
+      label: "config.yml 내용"
+      description: "문제가 되는 아이템/블록/엔티티의 config.yml 설정을 붙여넣어 주세요."
+      render: yaml
+
+  - type: textarea
+    id: error_log
+    attributes:
+      label: "에러 로그"
+      description: "서버 로그의 에러 메시지를 붙여넣어 주세요."
+      render: text
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: "체크리스트"
+      options:
+        - label: "최신 버전의 플러그인을 사용하고 있습니다."
+          required: true
+        - label: "기존 이슈를 검색해 동일한 내용이 없음을 확인했습니다."
+          required: true

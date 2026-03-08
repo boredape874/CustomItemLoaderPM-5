@@ -1,20 +1,8 @@
 ---
-name: Feature request
-about: Suggest an idea for this project
+name: "✨ 기능 요청 (구버전)"
+about: "새 폼 양식(feature_request.yml)을 사용해 주세요."
 title: ''
-labels: ''
-assignees: ''
-
+labels: enhancement
 ---
 
-**Is your feature request related to a problem? Please describe.**
-A clear and concise description of what the problem is. Ex. I'm always frustrated when [...]
-
-**Describe the solution you'd like**
-A clear and concise description of what you want to happen.
-
-**Describe alternatives you've considered**
-A clear and concise description of any alternative solutions or features you've considered.
-
-**Additional context**
-Add any other context or screenshots about the feature request here.
+> ⚠️ 이 템플릿은 구버전입니다. 이슈 선택 화면에서 **✨ 기능 요청** 양식을 사용해 주세요.
