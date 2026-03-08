@@ -10,6 +10,8 @@
 # namespace : 필수. "팩이름:아이템id" 형식
 # texture   : 필수. textures/items/ 기준 파일명 (확장자 제외)
 # 타입별 옵션: durable / food / armor / tool
+# on_use    : 아이템 우클릭 시 실행할 액션 목록
+# on_attack : 아이템으로 엔티티 공격 시 실행할 액션 목록
 # 상세 옵션 → CONFIGURATION.md
 items: {}
 
@@ -22,6 +24,27 @@ items: {}
 #    durable: true
 #    max_durability: 1000
 #    add_creative_inventory: true
+#    on_attack:
+#      - action: give_effect
+#        effect: slowness
+#        duration: 60
+#        amplifier: 1
+#      - action: play_sound
+#        sound: "random.orb"
+#        volume: 1.0
+#        pitch: 1.2
+#
+#  magic_wand:
+#    namespace: "mypack:magic_wand"
+#    texture: "magic_wand"
+#    hand_equipped: true
+#    add_creative_inventory: true
+#    on_use:
+#      - action: spawn_entity
+#        namespace: "mypack:fire_ball"
+#      - action: play_particle
+#        particle: "mypack:ruby_burst"
+#        offset_y: 1.5
 #
 #  magic_cake:
 #    namespace: "mypack:magic_cake"
@@ -31,6 +54,11 @@ items: {}
 #    saturation: 10.0
 #    can_always_eat: true
 #    add_creative_inventory: true
+#    on_use:
+#      - action: give_effect
+#        effect: regeneration
+#        duration: 100
+#        amplifier: 0
 #
 #  ruby_helmet:
 #    namespace: "mypack:ruby_helmet"
@@ -47,10 +75,14 @@ items: {}
 # ══════════════════════════════════
 #  🧱  BLOCKS (커스텀 블록)
 # ══════════════════════════════════
-# namespace  : 필수. "팩이름:블록id" 형식
-# texture    : 필수. textures/blocks/ 기준 파일명 (확장자 제외)
-# tool_type  : pickaxe / axe / shovel / hoe / sword / shears / none
-# tool_tier  : 1=나무 2=금 3=돌 4=철 5=다이아
+# namespace      : 필수. "팩이름:블록id" 형식
+# texture        : 필수. textures/blocks/ 기준 파일명 (확장자 제외)
+# type           : cube (기본값) / slab / stair
+# tool_type      : pickaxe / axe / shovel / hoe / sword / shears / none
+# tool_tier      : 1=나무 2=금 3=돌 4=철 5=다이아
+# loot_table     : loot_tables 섹션에 정의된 테이블 이름 (drops 대신 사용)
+# on_break       : 블록 파괴 시 실행할 액션 목록
+# on_place       : 블록 설치 시 실행할 액션 목록
 # 상세 옵션 → CONFIGURATION.md
 blocks: {}
 
@@ -62,10 +94,28 @@ blocks: {}
 #    blast_resistance: 3.0
 #    tool_type: "pickaxe"
 #    tool_tier: 2
-#    drops:
-#      - id: "mypack:ruby_gem"
-#        count: 1
-#        chance: 1.0
+#    loot_table: "ruby_ore_drops"   # loot_tables 섹션 참조
+#    on_break:
+#      - action: play_sound
+#        sound: "dig.stone"
+#        volume: 1.0
+#        pitch: 0.8
+#
+#  ruby_slab:
+#    namespace: "mypack:ruby_slab"
+#    texture: "ruby_slab"
+#    type: slab                     # 슬랩 형태
+#    hardness: 2.0
+#    tool_type: "pickaxe"
+#    tool_tier: 1
+#
+#  ruby_stair:
+#    namespace: "mypack:ruby_stair"
+#    texture: "ruby_stair"
+#    type: stair                    # 계단 형태
+#    hardness: 2.0
+#    tool_type: "pickaxe"
+#    tool_tier: 1
 #
 #  crystal_block:
 #    namespace: "mypack:crystal_block"
@@ -84,6 +134,9 @@ blocks: {}
 # goals > type    : float / random_stroll / melee_attack /
 #                   look_at_entity / hurt_by_target / nearest_attackable
 # priority        : 낮을수록 우선도 높음
+# spawn           : 자동 스폰 규칙 (선택)
+# animations      : 클라이언트 애니메이션 연동 (선택)
+# animate         : 애니메이션 컨트롤러 상태 (선택)
 # 상세 옵션 → CONFIGURATION.md
 entities: {}
 
@@ -107,3 +160,116 @@ entities: {}
 #      - id: "mypack:ruby_gem"
 #        count: 3
 #        chance: 1.0
+#    spawn:
+#      enabled: true
+#      biomes: [plains, forest, savanna]
+#      time: night            # day / night / any
+#      light_max: 7
+#      weight: 10
+#      min_group: 1
+#      max_group: 3
+#      max_spawned: 10
+#    animations:
+#      walk:   "animation.ruby_golem.walk"
+#      attack: "animation.ruby_golem.attack"
+#    animate:
+#      - walk
+#      - { attack: "query.is_attacking" }
+
+
+# ══════════════════════════════════
+#  📜  RECIPES (커스텀 레시피)
+# ══════════════════════════════════
+# type: shaped / shapeless / furnace / blast_furnace /
+#       smoker / campfire / soul_campfire / stonecutter
+recipes: {}
+
+#  예시:
+#  ruby_sword:
+#    type: shaped
+#    pattern:
+#      - "R "
+#      - "R "
+#      - " S"
+#    ingredients:
+#      R: "mypack:ruby_gem"
+#      S: "minecraft:stick"
+#    result:
+#      id: "mypack:ruby_sword"
+#      count: 1
+#
+#  ruby_gem_smelt:
+#    type: furnace
+#    input: "mypack:ruby_ore_raw"
+#    result:
+#      id: "mypack:ruby_gem"
+#      count: 1
+#
+#  ruby_shard:
+#    type: stonecutter
+#    input: "mypack:ruby_gem"
+#    result:
+#      id: "mypack:ruby_shard"
+#      count: 3
+
+
+# ══════════════════════════════════
+#  🎲  LOOT TABLES (루트 테이블)
+# ══════════════════════════════════
+# 블록의 loot_table 필드나 게임 로직에서 이름으로 참조합니다.
+loot_tables: {}
+
+#  예시:
+#  ruby_ore_drops:
+#    pools:
+#      - rolls:
+#          min: 1
+#          max: 3
+#        entries:
+#          - id: "mypack:ruby_gem"
+#            weight: 80
+#            count:
+#              min: 1
+#              max: 2
+#            chance: 1.0
+#          - id: "minecraft:cobblestone"
+#            weight: 20
+#            count: 1
+#            chance: 0.5
+
+
+# ══════════════════════════════════
+#  🔊  SOUNDS (커스텀 사운드)
+# ══════════════════════════════════
+# 리소스팩의 sounds/ 에 .ogg 파일을 배치하고 등록하세요.
+# category: block / player / ambient / music / neutral / weather / record
+sounds: {}
+
+#  예시:
+#  ruby_break:
+#    file: "ruby_break"       # sounds/ruby_break.ogg
+#    volume: 1.0
+#    pitch: 1.0
+#    category: block
+#
+#  ruby_equip:
+#    file: "ruby_equip"
+#    volume: 0.8
+#    pitch: 1.2
+#    category: player
+
+
+# ══════════════════════════════════
+#  ✨  PARTICLES (커스텀 파티클)
+# ══════════════════════════════════
+# 리소스팩의 particles/ 에 파티클 JSON이 자동 생성됩니다.
+particles: {}
+
+#  예시:
+#  ruby_burst:
+#    texture: "particles/ruby_burst"   # textures/particles/ruby_burst.png
+#    count: 10
+#
+#  magic_sparkle:
+#    texture: "particles/magic_sparkle"
+#    count: 5

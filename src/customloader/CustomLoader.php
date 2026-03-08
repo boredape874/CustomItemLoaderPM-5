@@ -8,11 +8,17 @@ use customloader\command\CustomLoaderCommand;
 use customloader\manager\CustomBlockManager;
 use customloader\manager\CustomEntityManager;
 use customloader\manager\CustomItemManager;
+use customloader\manager\CustomParticleManager;
+use customloader\manager\CustomSoundManager;
+use customloader\manager\LootTableManager;
+use customloader\recipe\CustomRecipeManager;
 use customloader\task\BlockRegistrationTask;
+use customloader\task\EntitySpawnTask;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\SingletonTrait;
 use RuntimeException;
 use Symfony\Component\Filesystem\Path;
+use function count;
 use function is_dir;
 use function mkdir;
 use function sprintf;
@@ -69,6 +75,59 @@ class CustomLoader extends PluginBase{
 			$this->getLogger()->logException($e);
 			$this->getServer()->getPluginManager()->disablePlugin($this);
 			return;
+		}
+
+		// ── 루트 테이블 ─────────────────────────────────────────────────────
+		try{
+			LootTableManager::getInstance()->registerDefaultLootTables(
+				$this->getConfig()->get("loot_tables", [])
+			);
+			if(LootTableManager::getInstance()->getTableCount() > 0){
+				$this->getLogger()->info("Loaded " . LootTableManager::getInstance()->getTableCount() . " loot table(s).");
+			}
+		}catch(\Throwable $e){
+			$this->getLogger()->warning("Failed to load loot tables: " . $e->getMessage());
+		}
+
+		// ── 커스텀 레시피 ────────────────────────────────────────────────────
+		try{
+			CustomRecipeManager::getInstance()->registerDefaultRecipes(
+				$this->getConfig()->get("recipes", []),
+				$this->getServer()->getCraftingManager()
+			);
+			if(CustomRecipeManager::getInstance()->getRecipeCount() > 0){
+				$this->getLogger()->info("Loaded " . CustomRecipeManager::getInstance()->getRecipeCount() . " custom recipe(s).");
+			}
+		}catch(\Throwable $e){
+			$this->getLogger()->warning("Failed to load recipes: " . $e->getMessage());
+		}
+
+		// ── 커스텀 사운드 ────────────────────────────────────────────────────
+		try{
+			CustomSoundManager::getInstance()->registerDefaultSounds(
+				$this->getConfig()->get("sounds", [])
+			);
+		}catch(\Throwable $e){
+			$this->getLogger()->warning("Failed to load custom sounds: " . $e->getMessage());
+		}
+
+		// ── 커스텀 파티클 ────────────────────────────────────────────────────
+		try{
+			CustomParticleManager::getInstance()->registerDefaultParticles(
+				$this->getConfig()->get("particles", [])
+			);
+		}catch(\Throwable $e){
+			$this->getLogger()->warning("Failed to load custom particles: " . $e->getMessage());
+		}
+
+		// ── 스폰 규칙 스케줄러 ───────────────────────────────────────────────
+		$spawnRules = CustomEntityManager::getInstance()->getSpawnRules();
+		if(count($spawnRules) > 0){
+			$this->getScheduler()->scheduleRepeatingTask(
+				new EntitySpawnTask($spawnRules),
+				400 // every 20 seconds
+			);
+			$this->getLogger()->info("Registered " . count($spawnRules) . " entity spawn rule(s).");
 		}
 
 		$this->getServer()->getPluginManager()->registerEvents(new EventListener(), $this);

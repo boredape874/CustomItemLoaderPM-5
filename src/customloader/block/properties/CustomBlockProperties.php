@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace customloader\block\properties;
 
+use customloader\event\hook\EventAction;
+use customloader\event\hook\EventHookParser;
 use InvalidArgumentException;
 use pocketmine\block\BlockToolType;
 use pocketmine\block\BlockTypeIds;
@@ -27,6 +29,14 @@ final class CustomBlockProperties{
 	private array $drops = [];
 	private int $creativeCategory;
 	private int $typeId;
+	/** Block shape: "cube" | "slab" | "stair" */
+	private string $blockType = "cube";
+	/** Loot table name override — when set, LootTableManager is used for drops */
+	private ?string $lootTable = null;
+	/** @var EventAction[]  Actions fired after the block is broken */
+	private array $onBreakHooks = [];
+	/** @var EventAction[]  Actions fired after the block is placed */
+	private array $onPlaceHooks = [];
 
 	public function __construct(private string $name, array $data, ?int $presetTypeId = null){
 		$this->parseData($data, $presetTypeId);
@@ -61,6 +71,18 @@ final class CustomBlockProperties{
 		};
 		$this->toolTier = isset($data["tool_tier"]) ? (int) $data["tool_tier"] : 0;
 
+		// Block shape type: cube (default), slab, stair
+		$blockTypeStr = strtolower((string) ($data["type"] ?? "cube"));
+		$this->blockType = match($blockTypeStr){
+			"slab", "stair" => $blockTypeStr,
+			default => "cube",
+		};
+
+		// Optional loot table reference (overrides drops when set)
+		if(isset($data["loot_table"]) && $data["loot_table"] !== ""){
+			$this->lootTable = (string) $data["loot_table"];
+		}
+
 		if(isset($data["drops"]) && is_array($data["drops"])){
 			foreach($data["drops"] as $drop){
 				if(!isset($drop["id"])) continue;
@@ -72,6 +94,14 @@ final class CustomBlockProperties{
 					"chance" => (float) ($drop["chance"] ?? 1.0),
 				];
 			}
+		}
+
+		// Event hooks
+		if(isset($data["on_break"]) && is_array($data["on_break"])){
+			$this->onBreakHooks = EventHookParser::parse($data["on_break"]);
+		}
+		if(isset($data["on_place"]) && is_array($data["on_place"])){
+			$this->onPlaceHooks = EventHookParser::parse($data["on_place"]);
 		}
 	}
 
@@ -87,6 +117,14 @@ final class CustomBlockProperties{
 	public function hasDrops() : bool{ return count($this->drops) > 0; }
 	public function getCreativeCategory() : int{ return $this->creativeCategory; }
 	public function getTypeId() : int{ return $this->typeId; }
+	/** Returns the block shape type: "cube" | "slab" | "stair" */
+	public function getBlockType() : string{ return $this->blockType; }
+	/** Returns the optional loot table name, or null if using inline drops */
+	public function getLootTable() : ?string{ return $this->lootTable; }
+	/** @return EventAction[] */
+	public function getOnBreakHooks() : array{ return $this->onBreakHooks; }
+	/** @return EventAction[] */
+	public function getOnPlaceHooks() : array{ return $this->onPlaceHooks; }
 
 	/** @return Item[] */
 	public function getDropItems() : array{

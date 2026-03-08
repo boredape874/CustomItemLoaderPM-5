@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace customloader\manager;
 
 use customloader\block\CustomBlock;
+use customloader\block\CustomBlockInterface;
+use customloader\block\CustomSlabBlock;
+use customloader\block\CustomStairBlock;
 use customloader\block\properties\CustomBlockProperties;
 use pocketmine\block\Block;
 use pocketmine\block\BlockBreakInfo;
@@ -24,7 +27,7 @@ use Throwable;
 final class CustomBlockManager{
 	use SingletonTrait;
 
-	/** @var CustomBlock[] */
+	/** @var CustomBlockInterface[] All registered custom blocks (cubes, slabs, stairs) */
 	private array $registered = [];
 	/** @var BlockPaletteEntry[] */
 	private array $paletteEntries = [];
@@ -43,7 +46,8 @@ final class CustomBlockManager{
 
 	public function isCustomBlock(Block $block) : bool{
 		foreach($this->registered as $other){
-			if($block->getTypeId() === $other->getTypeId()){
+			// CustomBlockInterface objects are also Blocks, so getTypeId() is safe
+			if($block->getTypeId() === ($other instanceof Block ? $other->getTypeId() : -1)){
 				return true;
 			}
 		}
@@ -53,16 +57,40 @@ final class CustomBlockManager{
 	/** @return Item[] */
 	public function getDrops(Block $block) : array{
 		foreach($this->registered as $customBlock){
+			if(!($customBlock instanceof Block)){
+				continue;
+			}
 			if($block->getTypeId() === $customBlock->getTypeId()){
-				return $customBlock->getProperties()->getDropItems();
+				$props = $customBlock->getProperties();
+				// Prefer loot table drops when a loot table is configured
+				$lootTable = $props->getLootTable();
+				if($lootTable !== null){
+					return LootTableManager::getInstance()->roll($lootTable);
+				}
+				return $props->getDropItems();
 			}
 		}
 		return [];
 	}
 
-	public function registerBlock(CustomBlock $block) : void{
+	/** Returns the CustomBlockInterface instance for a given block's typeId, or null. */
+	public function getCustomBlock(Block $block) : ?CustomBlockInterface{
+		foreach($this->registered as $customBlock){
+			if($customBlock instanceof Block && $block->getTypeId() === $customBlock->getTypeId()){
+				return $customBlock;
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Registers any block that implements CustomBlockInterface.
+	 * Accepts CustomBlock (cube), CustomSlabBlock, and CustomStairBlock.
+	 */
+	public function registerBlock(CustomBlockInterface $block) : void{
 		try{
 			$this->registered[] = $block;
+			/** @var Block $block */
 			$this->internalRegisterBlock($block, $block->getProperties()->getNamespace());
 		}catch(Throwable $e){
 			throw new \InvalidArgumentException("Failed to register block: " . $e->getMessage(), 0, $e);
@@ -78,7 +106,7 @@ final class CustomBlockManager{
 		}
 	}
 
-	public static function getBlock(string $name, array $data, ?int $presetTypeId = null) : CustomBlock{
+	public static function getBlock(string $name, array $data, ?int $presetTypeId = null) : CustomBlockInterface{
 		$props = new CustomBlockProperties($name, $data, $presetTypeId);
 		$breakInfo = new BlockBreakInfo(
 			$props->getHardness(),
@@ -87,7 +115,13 @@ final class CustomBlockManager{
 			$props->getBlastResistance()
 		);
 		$typeInfo = new BlockTypeInfo($breakInfo);
-		return new CustomBlock(new BlockIdentifier($props->getTypeId()), $typeInfo, $props);
+		$identifier = new BlockIdentifier($props->getTypeId());
+
+		return match($props->getBlockType()){
+			"slab"  => new CustomSlabBlock($identifier, $typeInfo, $props),
+			"stair" => new CustomStairBlock($identifier, $typeInfo, $props),
+			default => new CustomBlock($identifier, $typeInfo, $props),
+		};
 	}
 
 	public function internalRegisterBlock(Block $block, string $namespace) : void{

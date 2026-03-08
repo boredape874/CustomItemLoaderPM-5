@@ -15,11 +15,15 @@ use RuntimeException;
 use SplFileInfo;
 use Symfony\Component\Filesystem\Path;
 use ZipArchive;
+use function array_merge;
 use function explode;
+use function file_get_contents;
 use function file_put_contents;
 use function implode;
+use function is_array;
 use function is_dir;
 use function json_encode;
+use function method_exists;
 use function mkdir;
 use function preg_replace;
 use function sprintf;
@@ -44,16 +48,22 @@ final class ResourcePackBuilder{
 	/**
 	 * Creates the full resource pack + behavior pack directory structure.
 	 *
-	 * @param string $packDescription
-	 * @param CustomItemProperties[] $items
+	 * @param string                  $packDescription
+	 * @param CustomItemProperties[]  $items
 	 * @param CustomBlockProperties[] $blocks
 	 * @param CustomEntityProperties[] $entities
+	 * @param array<string, mixed>[]  $sounds    Sound definition entries keyed by sound id.
+	 *                                            Each entry: ["category" => string, "sounds" => [["name" => string]]]
+	 * @param array<string, mixed>[]  $particles  Particle definition entries keyed by namespace id.
+	 *                                            Each entry: ["texture" => string] (rest uses defaults)
 	 */
 	public function create(
 		string $packDescription,
 		array $items = [],
 		array $blocks = [],
-		array $entities = []
+		array $entities = [],
+		array $sounds = [],
+		array $particles = []
 	) : void{
 		$this->createDirectories();
 		$this->writeManifest($this->rpDir, $packDescription, "resources");
@@ -64,6 +74,15 @@ final class ResourcePackBuilder{
 		$this->writeEntityClientFiles($entities);
 		$this->writeBehaviorBlockFiles($blocks);
 		$this->writeBehaviorEntityFiles($entities);
+		if(count($sounds) > 0){
+			$this->writeSoundFiles($sounds);
+		}
+		if(count($particles) > 0){
+			$this->writeParticleFiles($particles);
+		}
+		if(count($entities) > 0){
+			$this->writeAnimationFiles($entities);
+		}
 	}
 
 	private function createDirectories() : void{
@@ -72,9 +91,14 @@ final class ResourcePackBuilder{
 			Path::join($this->rpDir, "textures", "items"),
 			Path::join($this->rpDir, "textures", "blocks"),
 			Path::join($this->rpDir, "textures", "entity"),
+			Path::join($this->rpDir, "textures", "particles"),
 			Path::join($this->rpDir, "models", "entity"),
 			Path::join($this->rpDir, "entity"),
 			Path::join($this->rpDir, "texts"),
+			Path::join($this->rpDir, "sounds"),
+			Path::join($this->rpDir, "particles"),
+			Path::join($this->rpDir, "animations"),
+			Path::join($this->rpDir, "animation_controllers"),
 			$this->bpDir,
 			Path::join($this->bpDir, "blocks"),
 			Path::join($this->bpDir, "entities"),
@@ -138,7 +162,7 @@ final class ResourcePackBuilder{
 	}
 
 	/**
-	 * @param CustomItemProperties[] $items
+	 * @param CustomItemProperties[]  $items
 	 * @param CustomBlockProperties[] $blocks
 	 * @param CustomEntityProperties[] $entities
 	 */
@@ -156,21 +180,218 @@ final class ResourcePackBuilder{
 		file_put_contents(Path::join($this->rpDir, "texts", "en_US.lang"), implode("\n", $lines));
 	}
 
+	/**
+	 * Generates `sounds/sound_definitions.json` from a map of sound ids to their definition.
+	 *
+	 * Expected $sounds format (keyed by sound id string):
+	 * [
+	 *   "ruby.break" => ["category" => "block", "sounds" => [["name" => "sounds/ruby_break"]]],
+	 *   ...
+	 * ]
+	 *
+	 * @param array<string, mixed> $sounds
+	 */
+	public function writeSoundFiles(array $sounds) : void{
+		$soundDir = Path::join($this->rpDir, "sounds");
+		if(!is_dir($soundDir) && !mkdir($soundDir, 0777, true) && !is_dir($soundDir)){
+			throw new RuntimeException(sprintf('Directory "%s" was not created', $soundDir));
+		}
+
+		$definitions = [];
+		foreach($sounds as $soundId => $entry){
+			$category = (string) ($entry["category"] ?? "neutral");
+			$soundEntries = is_array($entry["sounds"] ?? null) ? $entry["sounds"] : [];
+			$definitions[$soundId] = [
+				"category" => $category,
+				"sounds" => $soundEntries,
+			];
+		}
+
+		$this->writeJson(Path::join($soundDir, "sound_definitions.json"), [
+			"sound_definitions" => $definitions,
+		]);
+	}
+
+	/**
+	 * Generates a `particles/{namespace}.particle.json` file for each particle entry.
+	 *
+	 * Expected $particles format (keyed by particle namespace id):
+	 * [
+	 *   "example:ruby_burst" => ["texture" => "textures/particles/ruby_burst"],
+	 *   ...
+	 * ]
+	 *
+	 * @param array<string, mixed> $particles
+	 */
+	public function writeParticleFiles(array $particles) : void{
+		$particleDir = Path::join($this->rpDir, "particles");
+		if(!is_dir($particleDir) && !mkdir($particleDir, 0777, true) && !is_dir($particleDir)){
+			throw new RuntimeException(sprintf('Directory "%s" was not created', $particleDir));
+		}
+
+		foreach($particles as $namespaceId => $entry){
+			$safeId = str_replace(":", "_", $namespaceId);
+			$texture = (string) ($entry["texture"] ?? "textures/particles/{$safeId}");
+
+			$def = [
+				"format_version" => "1.10.0",
+				"particle_effect" => [
+					"description" => [
+						"identifier" => $namespaceId,
+						"basic_render_parameters" => [
+							"material" => "particles_alpha",
+							"texture" => $texture,
+						],
+					],
+					"components" => [
+						"minecraft:emitter_rate_instant" => [
+							"num_particles" => (int) ($entry["amount"] ?? 10),
+						],
+						"minecraft:emitter_lifetime_once" => [
+							"active_time" => 0,
+						],
+						"minecraft:emitter_shape_point" => new \stdClass(),
+						"minecraft:particle_initial_speed" => (float) ($entry["speed"] ?? 5.0),
+						"minecraft:particle_lifetime_expression" => [
+							"max_lifetime" => (float) ($entry["lifetime"] ?? 1.0),
+						],
+					],
+				],
+			];
+
+			$this->writeJson(Path::join($particleDir, "{$safeId}.particle.json"), $def);
+		}
+	}
+
+	/**
+	 * Generates animation and animation controller JSON files for any entity that
+	 * has animations defined.
+	 *
+	 * Calls $props->getAnimations() and $props->getAnimateBehavior() — these methods
+	 * must exist on CustomEntityProperties (added separately).
+	 *
+	 * getAnimations() returns ?array in the form:
+	 *   ["walk" => "animation.my_mob.walk", "attack" => "animation.my_mob.attack"]
+	 *
+	 * getAnimateBehavior() returns ?array in the form:
+	 *   [["walk" => "query.modified_move_speed > 0"], ["attack" => "query.is_attacking"]]
+	 *
+	 * @param CustomEntityProperties[] $entities
+	 */
+	public function writeAnimationFiles(array $entities) : void{
+		$animDir = Path::join($this->rpDir, "animations");
+		$controllerDir = Path::join($this->rpDir, "animation_controllers");
+
+		foreach([$animDir, $controllerDir] as $dir){
+			if(!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)){
+				throw new RuntimeException(sprintf('Directory "%s" was not created', $dir));
+			}
+		}
+
+		foreach($entities as $props){
+			// getAnimations() is a new method — guard with method_exists for safety.
+			if(!method_exists($props, 'getAnimations')){
+				continue;
+			}
+			/** @var ?array<string, string> $animations */
+			$animations = $props->getAnimations();
+			if($animations === null || count($animations) === 0){
+				continue;
+			}
+
+			$safeId = str_replace(":", "_", $props->getNamespace());
+			$namespace = $props->getNamespace();
+
+			// --- animations/{safeId}.animation.json ---
+			$animEntries = [];
+			foreach($animations as $shortName => $animId){
+				$animEntries[$animId] = [
+					"loop" => true,
+					"bones" => new \stdClass(),
+				];
+			}
+			$this->writeJson(Path::join($animDir, "{$safeId}.animation.json"), [
+				"format_version" => "1.8.0",
+				"animations" => $animEntries,
+			]);
+
+			// --- animation_controllers/{safeId}.animation_controller.json ---
+			// getAnimateBehavior() returns the animate array for the controller.
+			$animateBehavior = method_exists($props, 'getAnimateBehavior')
+				? $props->getAnimateBehavior()
+				: null;
+
+			// Build the states array: initial_state -> animations list.
+			$stateAnimations = [];
+			foreach($animations as $shortName => $animId){
+				$stateAnimations[] = $shortName;
+			}
+
+			$controllerDef = [
+				"format_version" => "1.10.0",
+				"animation_controllers" => [
+					"controller.animation.{$safeId}.default" => [
+						"initial_state" => "default",
+						"states" => [
+							"default" => [
+								"animations" => $stateAnimations,
+							],
+						],
+					],
+				],
+			];
+			$this->writeJson(Path::join($controllerDir, "{$safeId}.animation_controller.json"), $controllerDef);
+		}
+	}
+
 	/** @param CustomEntityProperties[] $entities */
 	private function writeEntityClientFiles(array $entities) : void{
 		foreach($entities as $props){
 			$safeId = str_replace(":", "_", $props->getNamespace());
 			$geometryId = $props->getModel() ?? "geometry.{$safeId}";
+
+			$description = [
+				"identifier" => $props->getNamespace(),
+				"materials" => ["default" => "entity_alphatest"],
+				"textures" => ["default" => "textures/entity/{$props->getTexture()}"],
+				"geometry" => ["default" => $geometryId],
+				"render_controllers" => ["controller.render.entity_alphatest"],
+			];
+
+			// Inject animations block if the entity has animation data.
+			if(method_exists($props, 'getAnimations')){
+				/** @var ?array<string, string> $animations */
+				$animations = $props->getAnimations();
+				if($animations !== null && count($animations) > 0){
+					$animBlock = [];
+					foreach($animations as $shortName => $animId){
+						$animBlock[$shortName] = $animId;
+					}
+					// Add controller reference into the animations map.
+					$animBlock["controller.default"] = "controller.animation.{$safeId}.default";
+					$description["animations"] = $animBlock;
+
+					// Build scripts.animate array.
+					$animateArray = [];
+					if(method_exists($props, 'getAnimateBehavior') && is_array($props->getAnimateBehavior())){
+						foreach($props->getAnimateBehavior() as $behaviorEntry){
+							$animateArray[] = $behaviorEntry;
+						}
+					} else {
+						// Default: play all animations unconditionally.
+						foreach($animations as $shortName => $animId){
+							$animateArray[] = $shortName;
+						}
+					}
+					$animateArray[] = "controller.default";
+					$description["scripts"] = ["animate" => $animateArray];
+				}
+			}
+
 			$def = [
 				"format_version" => "1.10.0",
 				"minecraft:client_entity" => [
-					"description" => [
-						"identifier" => $props->getNamespace(),
-						"materials" => ["default" => "entity_alphatest"],
-						"textures" => ["default" => "textures/entity/{$props->getTexture()}"],
-						"geometry" => ["default" => $geometryId],
-						"render_controllers" => ["controller.render.entity_alphatest"],
-					],
+					"description" => $description,
 				],
 			];
 			$this->writeJson(Path::join($this->rpDir, "entity", "{$safeId}.entity.json"), $def);

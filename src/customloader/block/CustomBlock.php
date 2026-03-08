@@ -10,7 +10,7 @@ use pocketmine\block\BlockIdentifier;
 use pocketmine\block\BlockTypeInfo;
 use pocketmine\item\Item;
 
-class CustomBlock extends Block{
+class CustomBlock extends Block implements CustomBlockInterface{
 	use CustomBlockTrait;
 
 	public function __construct(BlockIdentifier $idInfo, BlockTypeInfo $typeInfo, CustomBlockProperties $properties){

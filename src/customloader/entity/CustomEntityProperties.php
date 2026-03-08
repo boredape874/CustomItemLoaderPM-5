@@ -26,6 +26,12 @@ final class CustomEntityProperties{
 	private array $drops = [];
 	/** @var array<array<string, mixed>> */
 	private array $goalDefinitions = [];
+	/** @var array<string, mixed>|null  Raw spawn config (passed to SpawnRule) */
+	private ?array $spawnData = null;
+	/** @var array<string, string>|null  Animation identifier → animation key mapping */
+	private ?array $animations = null;
+	/** @var array<string, mixed>|null  animate.states / animate list */
+	private ?array $animateBehavior = null;
 
 	public function __construct(private string $name, array $data){
 		$this->parseData($data);
@@ -66,6 +72,31 @@ final class CustomEntityProperties{
 		if(isset($data["goals"]) && is_array($data["goals"])){
 			$this->goalDefinitions = $data["goals"];
 		}
+
+		// Optional spawn rules (passed through to SpawnRule constructor)
+		if(isset($data["spawn"]) && is_array($data["spawn"])){
+			$this->spawnData = $data["spawn"];
+		}
+
+		// Optional animation bindings for ResourcePackBuilder
+		// animations:
+		//   walk: "animation.my_mob.walk"
+		//   attack: "animation.my_mob.attack"
+		if(isset($data["animations"]) && is_array($data["animations"])){
+			$parsed = [];
+			foreach($data["animations"] as $key => $animId){
+				$parsed[(string) $key] = (string) $animId;
+			}
+			$this->animations = $parsed;
+		}
+
+		// Optional animate controller states
+		// animate:
+		//   - walk
+		//   - { attack: "query.is_attacking" }
+		if(isset($data["animate"]) && is_array($data["animate"])){
+			$this->animateBehavior = $data["animate"];
+		}
 	}
 
 	public function getName() : string{ return $this->name; }
@@ -82,6 +113,15 @@ final class CustomEntityProperties{
 
 	/** @return array<array<string, mixed>> */
 	public function getGoalDefinitions() : array{ return $this->goalDefinitions; }
+
+	/** @return array<string, mixed>|null  Raw spawn config, or null if no spawn rules defined */
+	public function getSpawnData() : ?array{ return $this->spawnData; }
+
+	/** @return array<string, string>|null  Animation key → animation identifier, or null */
+	public function getAnimations() : ?array{ return $this->animations; }
+
+	/** @return array<string, mixed>|null  Animate controller states list, or null */
+	public function getAnimateBehavior() : ?array{ return $this->animateBehavior; }
 
 	/** @return Item[] */
 	public function getDropItems() : array{

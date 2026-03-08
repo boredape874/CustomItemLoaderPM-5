@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace customloader\item\properties;
 
+use customloader\event\hook\EventAction;
+use customloader\event\hook\EventHookParser;
 use customloader\item\properties\component\ArmorComponent;
 use customloader\item\properties\component\Component;
 use customloader\item\properties\component\CooldownComponent;
@@ -23,6 +25,7 @@ use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
 use pocketmine\nbt\tag\IntTag;
 use pocketmine\nbt\tag\StringTag;
+use function is_array;
 use function is_numeric;
 
 final class CustomItemProperties{
@@ -54,6 +57,11 @@ final class CustomItemProperties{
 	protected int $foil;
 	protected int $armorSlot = ArmorInventory::SLOT_HEAD;
 	private int $cooldown = 0;
+
+	/** @var EventAction[]  Actions fired when the player uses (right-clicks) this item */
+	private array $onUseHooks = [];
+	/** @var EventAction[]  Actions fired when the player attacks an entity with this item */
+	private array $onAttackHooks = [];
 
 	/** @var Component[] */
 	private array $components = [];
@@ -180,6 +188,14 @@ final class CustomItemProperties{
 		if($legacyId !== -1){
 			LegacyItemIdToStringIdMap::getInstance()->add($this->namespace, $legacyId);
 		}
+
+		// Event hooks — parsed lazily so unknown action types are skipped silently
+		if(isset($data["on_use"]) && is_array($data["on_use"])){
+			$this->onUseHooks = EventHookParser::parse($data["on_use"]);
+		}
+		if(isset($data["on_attack"]) && is_array($data["on_attack"])){
+			$this->onAttackHooks = EventHookParser::parse($data["on_attack"]);
+		}
 	}
 
 	public function addComponent(Component $component) : void{
@@ -221,6 +237,12 @@ final class CustomItemProperties{
 	public function setTool(bool $tool) : void{ $this->tool = $tool; }
 	public function setAddCreativeInventory(bool $add_creative_inventory) : void{ $this->add_creative_inventory = $add_creative_inventory; }
 	public function setAttackPoints(int $attack_points) : void{ $this->attack_points = $attack_points; }
+
+	/** @return EventAction[] */
+	public function getOnUseHooks() : array{ return $this->onUseHooks; }
+
+	/** @return EventAction[] */
+	public function getOnAttackHooks() : array{ return $this->onAttackHooks; }
 
 	public function getNbt(bool $rebuild = false) : CompoundTag{
 		if($rebuild){
