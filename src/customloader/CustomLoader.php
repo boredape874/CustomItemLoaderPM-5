@@ -13,6 +13,7 @@ use customloader\manager\CustomParticleManager;
 use customloader\manager\CustomSoundManager;
 use customloader\manager\LootTableManager;
 use customloader\recipe\CustomRecipeManager;
+use customloader\task\ArmorWearTask;
 use customloader\task\BlockRegistrationTask;
 use customloader\task\EntitySpawnTask;
 use customloader\task\HoldingItemTask;
@@ -138,16 +139,23 @@ class CustomLoader extends PluginBase{
 			$this->getLogger()->info("Registered " . count($spawnRules) . " entity spawn rule(s).");
 		}
 
-		// ── hold_particle 스케줄러 ───────────────────────────────────────────
+		// ── hold_particle / wear_particle 스케줄러 ───────────────────────────
 		$hasHoldParticle = false;
+		$hasWearParticle = false;
 		foreach(CustomItemManager::getInstance()->getItems() as $item){
-			if($item instanceof CustomItemInterface && $item->getProperties()->getHoldParticle() !== ""){
-				$hasHoldParticle = true;
-				break;
+			if(!($item instanceof CustomItemInterface)){
+				continue;
 			}
+			$props = $item->getProperties();
+			if($props->getHoldParticle() !== "") $hasHoldParticle = true;
+			if($props->getWearParticle() !== "") $hasWearParticle = true;
+			if($hasHoldParticle && $hasWearParticle) break;
 		}
 		if($hasHoldParticle){
 			$this->getScheduler()->scheduleRepeatingTask(new HoldingItemTask(), 1);
+		}
+		if($hasWearParticle){
+			$this->getScheduler()->scheduleRepeatingTask(new ArmorWearTask(), 1);
 		}
 
 		$this->getServer()->getPluginManager()->registerEvents(new EventListener(), $this);

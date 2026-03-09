@@ -140,21 +140,29 @@ final class EventListener implements Listener{
 
 	/**
 	 * Fired when a player right-clicks with an item (PlayerItemUseEvent).
-	 * Triggers on_use hooks defined in the item's config.
+	 * Triggers on_use hooks (항상) and on_sneak_use hooks (shift 중일 때).
 	 */
 	public function onPlayerItemUse(PlayerItemUseEvent $event) : void{
 		$item = $event->getItem();
-
-		// CustomItemInterface covers CustomItem, CustomFoodItem, CustomArmorItem, etc.
 		if(!($item instanceof CustomItemInterface)){
 			return;
 		}
-		$hooks = $item->getProperties()->getOnUseHooks();
-		if(count($hooks) === 0){
+
+		$props      = $item->getProperties();
+		$player     = $event->getPlayer();
+		$hooks      = $props->getOnUseHooks();
+		$sneakHooks = $props->getOnSneakUseHooks();
+
+		if(count($hooks) === 0 && count($sneakHooks) === 0){
 			return;
 		}
 
-		EventHookParser::execute($hooks, $event->getPlayer());
+		if(count($hooks) > 0){
+			EventHookParser::execute($hooks, $player);
+		}
+		if($player->isSneaking() && count($sneakHooks) > 0){
+			EventHookParser::execute($sneakHooks, $player);
+		}
 	}
 
 	/**
@@ -193,6 +201,14 @@ final class EventListener implements Listener{
 		$hooks = $props->getOnAttackHooks();
 		if(count($hooks) > 0){
 			EventHookParser::execute($hooks, $attacker, $event->getEntity());
+		}
+
+		// on_sneak_attack: shift 누른 채 공격
+		if($attacker->isSneaking()){
+			$sneakHooks = $props->getOnSneakAttackHooks();
+			if(count($sneakHooks) > 0){
+				EventHookParser::execute($sneakHooks, $attacker, $event->getEntity());
+			}
 		}
 
 		// attack_animate: 서버가 AnimatePacket으로 특수 이펙트 브로드캐스트

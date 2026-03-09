@@ -60,8 +60,12 @@ final class CustomItemProperties{
 
 	/** @var EventAction[]  Actions fired when the player uses (right-clicks) this item */
 	private array $onUseHooks = [];
+	/** @var EventAction[]  Shift+우클릭 시 실행 */
+	private array $onSneakUseHooks = [];
 	/** @var EventAction[]  Actions fired when the player attacks an entity with this item */
 	private array $onAttackHooks = [];
+	/** @var EventAction[]  Shift+공격 시 실행 */
+	private array $onSneakAttackHooks = [];
 	/** @var EventAction[]  Actions fired when the player eats this item (food only) */
 	private array $onEatHooks = [];
 	/** Furnace burn time in ticks (0 = not a fuel). Wood = 300 ticks */
@@ -78,6 +82,16 @@ final class CustomItemProperties{
 	private string $holdAnimation = "";
 	/** RP attachable: 공격(is_attacking) 시 재생할 애니메이션 ID */
 	private string $attackAnimation = "";
+	/** RP attachable: 우클릭(is_using_item) 시 재생할 애니메이션 ID */
+	private string $useAnimation = "";
+	/** RP attachable: shift+우클릭(is_sneaking && is_using_item) 시 재생 */
+	private string $sneakUseAnimation = "";
+	/** 방어구 착용 중 서버가 주기적으로 스폰하는 파티클 namespace */
+	private string $wearParticle = "";
+	/** 방어구 파티클 스폰 주기 (틱, 기본 20 = 1초) */
+	private int $wearParticleInterval = 20;
+	/** RP armor attachable: 착용 중 루프 재생 애니메이션 ID */
+	private string $wearAnimation = "";
 
 	/** @var Component[] */
 	private array $components = [];
@@ -218,13 +232,24 @@ final class CustomItemProperties{
 		$this->attackAnimate        = (string) ($data["attack_animate"] ?? "");
 		$this->holdAnimation        = (string) ($data["hold_animation"] ?? "");
 		$this->attackAnimation      = (string) ($data["attack_animation"] ?? "");
+		$this->useAnimation         = (string) ($data["use_animation"] ?? "");
+		$this->sneakUseAnimation    = (string) ($data["sneak_use_animation"] ?? "");
+		$this->wearParticle         = (string) ($data["wear_particle"] ?? "");
+		$this->wearParticleInterval = max(1, (int) ($data["wear_particle_interval"] ?? 20));
+		$this->wearAnimation        = (string) ($data["wear_animation"] ?? "");
 
 		// Event hooks — parsed lazily so unknown action types are skipped silently
 		if(isset($data["on_use"]) && is_array($data["on_use"])){
 			$this->onUseHooks = EventHookParser::parse($data["on_use"]);
 		}
+		if(isset($data["on_sneak_use"]) && is_array($data["on_sneak_use"])){
+			$this->onSneakUseHooks = EventHookParser::parse($data["on_sneak_use"]);
+		}
 		if(isset($data["on_attack"]) && is_array($data["on_attack"])){
 			$this->onAttackHooks = EventHookParser::parse($data["on_attack"]);
+		}
+		if(isset($data["on_sneak_attack"]) && is_array($data["on_sneak_attack"])){
+			$this->onSneakAttackHooks = EventHookParser::parse($data["on_sneak_attack"]);
 		}
 		if(isset($data["on_eat"]) && is_array($data["on_eat"])){
 			$this->onEatHooks = EventHookParser::parse($data["on_eat"]);
@@ -302,6 +327,27 @@ final class CustomItemProperties{
 
 	/** RP attachable: 공격 시 애니메이션 ID ("" = 없음) */
 	public function getAttackAnimation() : string{ return $this->attackAnimation; }
+
+	/** RP attachable: 우클릭(is_using_item) 시 애니메이션 ID ("" = 없음) */
+	public function getUseAnimation() : string{ return $this->useAnimation; }
+
+	/** RP attachable: shift+우클릭 시 애니메이션 ID ("" = 없음) */
+	public function getSneakUseAnimation() : string{ return $this->sneakUseAnimation; }
+
+	/** Shift+우클릭 훅 */
+	public function getOnSneakUseHooks() : array{ return $this->onSneakUseHooks; }
+
+	/** Shift+공격 훅 */
+	public function getOnSneakAttackHooks() : array{ return $this->onSneakAttackHooks; }
+
+	/** 방어구 착용 중 파티클 namespace ("" = 없음) */
+	public function getWearParticle() : string{ return $this->wearParticle; }
+
+	/** 방어구 파티클 주기 (틱) */
+	public function getWearParticleInterval() : int{ return $this->wearParticleInterval; }
+
+	/** RP armor attachable: 착용 중 루프 애니메이션 ID ("" = 없음) */
+	public function getWearAnimation() : string{ return $this->wearAnimation; }
 
 	public function getNbt(bool $rebuild = false) : CompoundTag{
 		if($rebuild){

@@ -508,47 +508,63 @@ final class ResourcePackBuilder{
 		$animDir       = Path::join($this->rpDir, "animations");
 
 		foreach($items as $props){
-			$holdAnim   = $props->getHoldAnimation();
-			$attackAnim = $props->getAttackAnimation();
+			// ── 방어구: wear_animation → armor attachable ──────────────────
+			if($props->isArmor() && $props->getWearAnimation() !== ""){
+				$this->writeArmorAttachable($attachableDir, $animDir, $props);
+				continue;
+			}
 
-			if($holdAnim === "" && $attackAnim === ""){
+			// ── 일반 아이템: hold / attack / use / sneak_use animation ──────
+			$holdAnim      = $props->getHoldAnimation();
+			$attackAnim    = $props->getAttackAnimation();
+			$useAnim       = $props->getUseAnimation();
+			$sneakUseAnim  = $props->getSneakUseAnimation();
+
+			if($holdAnim === "" && $attackAnim === "" && $useAnim === "" && $sneakUseAnim === ""){
 				continue;
 			}
 
 			$ns     = $props->getNamespace();
 			$safeId = str_replace(":", "_", $ns);
 
-			// ── attachable definition ──
 			$animations    = [];
 			$scriptAnimate = [];
 
 			if($holdAnim !== ""){
-				$animations["hold"] = $holdAnim;
-				$scriptAnimate[]    = "hold";
+				$animations["hold"]  = $holdAnim;
+				$scriptAnimate[]     = "hold";
 			}
 			if($attackAnim !== ""){
 				$animations["attack"] = $attackAnim;
 				$scriptAnimate[]      = ["attack" => "query.is_attacking"];
+			}
+			if($useAnim !== ""){
+				$animations["use"] = $useAnim;
+				$scriptAnimate[]   = ["use" => "query.is_using_item"];
+			}
+			if($sneakUseAnim !== ""){
+				$animations["sneak_use"] = $sneakUseAnim;
+				$scriptAnimate[]         = ["sneak_use" => "query.is_sneaking && query.is_using_item"];
 			}
 
 			$attachable = [
 				"format_version"      => "1.10.0",
 				"minecraft:attachable" => [
 					"description" => [
-						"identifier"          => $ns,
-						"materials"           => ["default" => "entity_alphatest_glint"],
-						"textures"            => ["default" => "textures/items/{$props->getTexture()}"],
-						"geometry"            => ["default" => "geometry.humanoid.handheld"],
-						"animations"          => $animations,
-						"scripts"             => ["animate" => $scriptAnimate],
-						"render_controllers"  => ["controller.render.item_default"],
+						"identifier"         => $ns,
+						"materials"          => ["default" => "entity_alphatest_glint"],
+						"textures"           => ["default" => "textures/items/{$props->getTexture()}"],
+						"geometry"           => ["default" => "geometry.humanoid.handheld"],
+						"animations"         => $animations,
+						"scripts"            => ["animate" => $scriptAnimate],
+						"render_controllers" => ["controller.render.item_default"],
 					],
 				],
 			];
 			$this->writeJson(Path::join($attachableDir, "{$safeId}.json"), $attachable);
 
-			// ── animation stub (기존 파일 덮어쓰지 않음) ──
-			$animPath    = Path::join($animDir, "{$safeId}.animation.json");
+			// animation stub (기존 파일 덮어쓰지 않음)
+			$animPath = Path::join($animDir, "{$safeId}.animation.json");
 			if(!file_exists($animPath)){
 				$animEntries = [];
 				foreach($animations as $shortName => $animId){
@@ -563,6 +579,57 @@ final class ResourcePackBuilder{
 					"animations"     => $animEntries,
 				]);
 			}
+		}
+	}
+
+	/**
+	 * 방어구 wear_animation → armor attachable JSON + 애니메이션 스텁 생성.
+	 * armor_slot에 따라 올바른 humanoid.armor geometry를 사용.
+	 */
+	private function writeArmorAttachable(string $attachableDir, string $animDir, CustomItemProperties $props) : void{
+		$ns     = $props->getNamespace();
+		$safeId = str_replace(":", "_", $ns);
+		$wearId = $props->getWearAnimation();
+
+		$geometry = match($props->getArmorSlot()){
+			0 => "geometry.humanoid.armor.helmet",
+			1 => "geometry.humanoid.armor.chestplate",
+			2 => "geometry.humanoid.armor.leggings",
+			3 => "geometry.humanoid.armor.boots",
+			default => "geometry.humanoid.armor.chestplate",
+		};
+
+		$attachable = [
+			"format_version"      => "1.10.0",
+			"minecraft:attachable" => [
+				"description" => [
+					"identifier"         => $ns,
+					"materials"          => ["default" => "armor", "enchanted" => "armor_enchanted"],
+					"textures"           => [
+						"default"    => "textures/items/{$props->getTexture()}",
+						"enchanted"  => "textures/misc/enchanted_item_glint",
+					],
+					"geometry"           => ["default" => $geometry],
+					"animations"         => ["wear" => $wearId],
+					"scripts"            => ["animate" => ["wear"]],
+					"render_controllers" => ["controller.render.armor"],
+				],
+			],
+		];
+		$this->writeJson(Path::join($attachableDir, "{$safeId}.json"), $attachable);
+
+		$animPath = Path::join($animDir, "{$safeId}.animation.json");
+		if(!file_exists($animPath)){
+			$this->writeJson($animPath, [
+				"format_version" => "1.8.0",
+				"animations"     => [
+					$wearId => [
+						"loop"             => true,
+						"animation_length" => 1.0,
+						"bones"            => new \stdClass(),
+					],
+				],
+			]);
 		}
 	}
 
