@@ -62,6 +62,10 @@ final class CustomItemProperties{
 	private array $onUseHooks = [];
 	/** @var EventAction[]  Actions fired when the player attacks an entity with this item */
 	private array $onAttackHooks = [];
+	/** @var EventAction[]  Actions fired when the player eats this item (food only) */
+	private array $onEatHooks = [];
+	/** Furnace burn time in ticks (0 = not a fuel). Wood = 300 ticks */
+	private int $fuelBurnTime = 0;
 
 	/** @var Component[] */
 	private array $components = [];
@@ -189,12 +193,22 @@ final class CustomItemProperties{
 			LegacyItemIdToStringIdMap::getInstance()->add($this->namespace, $legacyId);
 		}
 
+		// Furnace fuel
+		if(isset($data["fuel"]) && is_array($data["fuel"])){
+			$this->fuelBurnTime = max(0, (int) ($data["fuel"]["burn_time"] ?? 0));
+		}elseif(isset($data["fuel"])){
+			$this->fuelBurnTime = max(0, (int) $data["fuel"]);
+		}
+
 		// Event hooks — parsed lazily so unknown action types are skipped silently
 		if(isset($data["on_use"]) && is_array($data["on_use"])){
 			$this->onUseHooks = EventHookParser::parse($data["on_use"]);
 		}
 		if(isset($data["on_attack"]) && is_array($data["on_attack"])){
 			$this->onAttackHooks = EventHookParser::parse($data["on_attack"]);
+		}
+		if(isset($data["on_eat"]) && is_array($data["on_eat"])){
+			$this->onEatHooks = EventHookParser::parse($data["on_eat"]);
 		}
 	}
 
@@ -243,6 +257,15 @@ final class CustomItemProperties{
 
 	/** @return EventAction[] */
 	public function getOnAttackHooks() : array{ return $this->onAttackHooks; }
+
+	/** @return EventAction[]  Actions executed when a player eats this item */
+	public function getOnEatHooks() : array{ return $this->onEatHooks; }
+
+	/** Returns furnace burn time in ticks (0 = not a fuel). Vanilla wood = 300 */
+	public function getFuelBurnTime() : int{ return $this->fuelBurnTime; }
+
+	/** Returns true if this item can be used as furnace fuel */
+	public function isFuel() : bool{ return $this->fuelBurnTime > 0; }
 
 	public function getNbt(bool $rebuild = false) : CompoundTag{
 		if($rebuild){

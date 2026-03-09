@@ -6,9 +6,12 @@ namespace customloader\manager;
 
 use customloader\block\CustomBlock;
 use customloader\block\CustomBlockInterface;
+use customloader\block\CustomFenceBlock;
+use customloader\block\CustomLeavesBlock;
 use customloader\block\CustomSlabBlock;
 use customloader\block\CustomStairBlock;
 use customloader\block\properties\CustomBlockProperties;
+use customloader\loot\LootTableManager;
 use pocketmine\block\Block;
 use pocketmine\block\BlockBreakInfo;
 use pocketmine\block\BlockIdentifier;
@@ -118,9 +121,11 @@ final class CustomBlockManager{
 		$identifier = new BlockIdentifier($props->getTypeId());
 
 		return match($props->getBlockType()){
-			"slab"  => new CustomSlabBlock($identifier, $typeInfo, $props),
-			"stair" => new CustomStairBlock($identifier, $typeInfo, $props),
-			default => new CustomBlock($identifier, $typeInfo, $props),
+			"slab"   => new CustomSlabBlock($identifier, $typeInfo, $props),
+			"stair"  => new CustomStairBlock($identifier, $typeInfo, $props),
+			"fence"  => new CustomFenceBlock($identifier, $typeInfo, $props),
+			"leaves" => new CustomLeavesBlock($identifier, $typeInfo, $props),
+			default  => new CustomBlock($identifier, $typeInfo, $props),
 		};
 	}
 

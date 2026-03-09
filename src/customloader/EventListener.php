@@ -10,7 +10,10 @@ use customloader\manager\CustomBlockManager;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
+use pocketmine\event\inventory\FurnaceBurnEvent;
 use pocketmine\event\Listener;
+use pocketmine\event\player\PlayerInteractEvent;
+use pocketmine\event\player\PlayerItemConsumeEvent;
 use pocketmine\event\player\PlayerItemUseEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\server\DataPacketSendEvent;
@@ -21,6 +24,7 @@ use pocketmine\network\mcpe\protocol\types\Experiments;
 use pocketmine\player\Player;
 use function count;
 use function hash;
+use function mt_rand;
 use function strcmp;
 use function usort;
 
@@ -75,10 +79,19 @@ final class EventListener implements Listener{
 				$world->dropItem($dropPos, $drop);
 			}
 
-			// Fire on_break hooks with the breaking player as source
 			$customBlock = $manager->getCustomBlock($block);
 			if($customBlock !== null){
-				$hooks = $customBlock->getProperties()->getOnBreakHooks();
+				$props = $customBlock->getProperties();
+
+				// XP drop
+				$xpMin = $props->getXpDropMin();
+				$xpMax = $props->getXpDropMax();
+				if($xpMax > 0){
+					$event->setXpDropAmount(mt_rand($xpMin, $xpMax));
+				}
+
+				// on_break hooks
+				$hooks = $props->getOnBreakHooks();
 				if(count($hooks) > 0){
 					EventHookParser::execute($hooks, $event->getPlayer());
 				}
@@ -105,6 +118,26 @@ final class EventListener implements Listener{
 	}
 
 	/**
+	 * Fired when a player right-clicks a block.
+	 * Triggers on_interact hooks defined in the block's config.
+	 */
+	public function onPlayerInteract(PlayerInteractEvent $event) : void{
+		if($event->getAction() !== PlayerInteractEvent::RIGHT_CLICK_BLOCK){
+			return;
+		}
+		$block = $event->getBlock();
+		$manager = CustomBlockManager::getInstance();
+		$customBlock = $manager->getCustomBlock($block);
+		if($customBlock === null){
+			return;
+		}
+		$hooks = $customBlock->getProperties()->getOnInteractHooks();
+		if(count($hooks) > 0){
+			EventHookParser::execute($hooks, $event->getPlayer());
+		}
+	}
+
+	/**
 	 * Fired when a player right-clicks with an item (PlayerItemUseEvent).
 	 * Triggers on_use hooks defined in the item's config.
 	 */
@@ -115,12 +148,27 @@ final class EventListener implements Listener{
 		if(!($item instanceof CustomItemInterface)){
 			return;
 		}
-		$props = $item->getProperties();
-		$hooks = $props->getOnUseHooks();
+		$hooks = $item->getProperties()->getOnUseHooks();
 		if(count($hooks) === 0){
 			return;
 		}
 
+		EventHookParser::execute($hooks, $event->getPlayer());
+	}
+
+	/**
+	 * Fired when a player finishes eating/drinking an item.
+	 * Triggers on_eat hooks defined in the item's config.
+	 */
+	public function onPlayerItemConsume(PlayerItemConsumeEvent $event) : void{
+		$item = $event->getItem();
+		if(!($item instanceof CustomItemInterface)){
+			return;
+		}
+		$hooks = $item->getProperties()->getOnEatHooks();
+		if(count($hooks) === 0){
+			return;
+		}
 		EventHookParser::execute($hooks, $event->getPlayer());
 	}
 
@@ -139,13 +187,28 @@ final class EventListener implements Listener{
 			return;
 		}
 
-		$props = $item->getProperties();
-		$hooks = $props->getOnAttackHooks();
+		$hooks = $item->getProperties()->getOnAttackHooks();
 		if(count($hooks) === 0){
 			return;
 		}
 
 		EventHookParser::execute($hooks, $attacker, $event->getEntity());
+	}
+
+	/**
+	 * Fired when a furnace begins burning a new fuel item.
+	 * Sets the burn duration for custom fuel items.
+	 */
+	public function onFurnaceBurn(FurnaceBurnEvent $event) : void{
+		$fuel = $event->getFuel();
+		if(!($fuel instanceof CustomItemInterface)){
+			return;
+		}
+		$burnTime = $fuel->getProperties()->getFuelBurnTime();
+		if($burnTime <= 0){
+			return;
+		}
+		$event->setBurnTime($burnTime);
 	}
 
 	public function onPlayerQuit(PlayerQuitEvent $event) : void{
