@@ -11,12 +11,9 @@ use customloader\event\hook\action\GiveXpAction;
 use customloader\event\hook\action\PlayParticleAction;
 use customloader\event\hook\action\PlaySoundAction;
 use customloader\event\hook\action\RunCommandAction;
-use customloader\event\hook\action\SendMessageAction;
-use customloader\event\hook\action\SendTitleAction;
 use customloader\event\hook\action\SetHealthAction;
 use customloader\event\hook\action\SetOnFireAction;
 use customloader\event\hook\action\SpawnEntityAction;
-use customloader\event\hook\action\TeleportAction;
 use pocketmine\entity\Entity;
 
 /**
@@ -26,7 +23,6 @@ use pocketmine\entity\Entity;
  * Supported action types:
  *   give_effect, play_sound, spawn_entity, run_command,
  *   damage, give_item, play_particle,
- *   send_message, send_title, teleport,
  *   set_on_fire, give_xp, set_health
  */
 final class EventHookParser{
@@ -48,9 +44,6 @@ final class EventHookParser{
         "damage"        => DamageAction::class,
         "give_item"     => GiveItemAction::class,
         "play_particle" => PlayParticleAction::class,
-        "send_message"  => SendMessageAction::class,
-        "send_title"    => SendTitleAction::class,
-        "teleport"      => TeleportAction::class,
         "set_on_fire"   => SetOnFireAction::class,
         "give_xp"       => GiveXpAction::class,
         "set_health"    => SetHealthAction::class,

@@ -51,29 +51,8 @@ items: {}
 #      - action: play_particle
 #        particle: "mypack:ruby_burst"
 #        offset_y: 1.5
-#      - action: send_title
-#        title: "§6✦ MAGIC ✦"
-#        subtitle: "§7주문이 시전되었습니다"
-#        fade_in: 10
-#        stay: 40
-#        fade_out: 10
 #      - action: give_xp
 #        amount: -5             # 음수: XP 차감
-#
-#  teleport_stick:
-#    namespace: "mypack:teleport_stick"
-#    texture: "teleport_stick"
-#    hand_equipped: true
-#    add_creative_inventory: true
-#    on_use:
-#      - action: teleport
-#        x: 0.0
-#        y: 64.0
-#        z: 0.0
-#        relative: false        # true: 현재 위치 기준 상대좌표
-#      - action: send_message
-#        message: "§a텔레포트 완료!"
-#        type: popup            # chat | tip | popup
 #
 #  magic_cake:
 #    namespace: "mypack:magic_cake"
@@ -147,9 +126,6 @@ blocks: {}
 #        sound: "dig.stone"
 #        volume: 1.0
 #        pitch: 0.8
-#      - action: send_message
-#        message: "§6루비 광석 채굴!"
-#        type: tip
 #
 #  magic_altar:
 #    namespace: "mypack:magic_altar"
@@ -158,14 +134,10 @@ blocks: {}
 #    tool_type: "pickaxe"
 #    tool_tier: 2
 #    on_interact:
-#      - action: send_title
-#        title: "§5✦ 마법 제단 ✦"
-#        subtitle: "§7상호작용하였습니다"
-#        fade_in: 10
-#        stay: 30
-#        fade_out: 10
 #      - action: give_xp
 #        amount: 5
+#      - action: run_command
+#        command: "say 마법 제단 활성화!"
 #
 #  ruby_slab:
 #    namespace: "mypack:ruby_slab"
