@@ -17,13 +17,14 @@ use pocketmine\plugin\PluginOwnedTrait;
 use Symfony\Component\Filesystem\Path;
 use function array_shift;
 use function array_values;
+use function count;
 use function trim;
 
 class CustomLoaderCommand extends Command implements PluginOwned{
 	use PluginOwnedTrait;
 
 	public function __construct(){
-		parent::__construct("customloader", "CustomLoader management", "/cl <create|build|additem|reload>", ["cl"]);
+		parent::__construct("customloader", "CustomLoader management", "/cl <create|build|additem|check|reload>", ["cl"]);
 		$this->setPermission("customloader.command");
 		$this->owningPlugin = CustomLoader::getInstance();
 	}
@@ -41,6 +42,8 @@ class CustomLoaderCommand extends Command implements PluginOwned{
 				return $this->handleBuild($sender, $args);
 			case "additem":
 				return $this->handleAddItem($sender, $args);
+			case "check":
+				return $this->handleCheck($sender);
 			case "reload":
 				return $this->handleReload($sender);
 			default:
@@ -48,6 +51,7 @@ class CustomLoaderCommand extends Command implements PluginOwned{
 				$sender->sendMessage("§f/cl create <packName> [description] §7- Create a new resource/behavior pack");
 				$sender->sendMessage("§f/cl build <packName> §7- Build .mcpack files from the pack folder");
 				$sender->sendMessage("§f/cl additem <packName> <itemName> <namespace> §7- Add an item entry manually");
+				$sender->sendMessage("§f/cl check §7- Validate current config without restarting");
 				$sender->sendMessage("§f/cl reload §7- Reload config (restart needed for full effect)");
 				return true;
 		}
@@ -132,6 +136,55 @@ class CustomLoaderCommand extends Command implements PluginOwned{
 		$builder->addItemEntry($itemName, $namespace, $itemName);
 		$sender->sendMessage("§aAdded item §f{$itemName} §a(namespace: §f{$namespace}§a) to pack.");
 		$sender->sendMessage("§eDon't forget to add the texture PNG and update config.yml!");
+		return true;
+	}
+
+	private function handleCheck(CommandSender $sender) : bool{
+		$plugin = CustomLoader::getInstance();
+		$config = $plugin->getConfig();
+		$totalErrors = 0;
+
+		// Items
+		$itemData = $config->get("items", []);
+		$itemErrors = CustomItemManager::getInstance()->validateConfig((array) $itemData);
+		if(count($itemErrors) === 0){
+			$sender->sendMessage("§a[Items] §f" . count($itemData) . " defined — no errors.");
+		}else{
+			foreach($itemErrors as $name => $msg){
+				$sender->sendMessage("§c[items.$name] §f$msg");
+			}
+			$totalErrors += count($itemErrors);
+		}
+
+		// Blocks
+		$blockData = $config->get("blocks", []);
+		$blockErrors = CustomBlockManager::getInstance()->validateConfig((array) $blockData);
+		if(count($blockErrors) === 0){
+			$sender->sendMessage("§a[Blocks] §f" . count($blockData) . " defined — no errors.");
+		}else{
+			foreach($blockErrors as $name => $msg){
+				$sender->sendMessage("§c[blocks.$name] §f$msg");
+			}
+			$totalErrors += count($blockErrors);
+		}
+
+		// Entities
+		$entityData = $config->get("entities", []);
+		$entityErrors = CustomEntityManager::getInstance()->validateConfig((array) $entityData);
+		if(count($entityErrors) === 0){
+			$sender->sendMessage("§a[Entities] §f" . count($entityData) . " defined — no errors.");
+		}else{
+			foreach($entityErrors as $name => $msg){
+				$sender->sendMessage("§c[entities.$name] §f$msg");
+			}
+			$totalErrors += count($entityErrors);
+		}
+
+		if($totalErrors === 0){
+			$sender->sendMessage("§aAll checks passed! No config errors found.");
+		}else{
+			$sender->sendMessage("§c$totalErrors error(s) found. Fix them and restart to apply.");
+		}
 		return true;
 	}
 

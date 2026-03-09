@@ -96,17 +96,47 @@ final class CustomBlockManager{
 		}
 	}
 
-	public function registerDefaultBlocks(array $data) : void{
+	/**
+	 * Validates config data without registering anything.
+	 * Returns an array of [name => errorMessage] for invalid entries.
+	 *
+	 * @return array<string, string>
+	 */
+	public function validateConfig(array $data) : array{
+		$errors = [];
 		foreach($data as $name => $blockData){
-			$block     = self::getBlock((string) $name, $blockData);
-			$namespace = $block->getProperties()->getNamespace();
-			$this->rawConfigs[$namespace] = [
-				"name"   => (string) $name,
-				"data"   => $blockData,
-				"typeId" => $block->getProperties()->getTypeId(),
-			];
-			$this->registerBlock($block);
+			try{
+				self::getBlock((string) $name, (array) $blockData);
+			}catch(\Throwable $e){
+				$errors[(string) $name] = $e->getMessage();
+			}
 		}
+		return $errors;
+	}
+
+	/**
+	 * Registers all blocks from config data.
+	 * Returns an array of [name => errorMessage] for failed blocks.
+	 *
+	 * @return array<string, string>
+	 */
+	public function registerDefaultBlocks(array $data) : array{
+		$errors = [];
+		foreach($data as $name => $blockData){
+			try{
+				$block     = self::getBlock((string) $name, $blockData);
+				$namespace = $block->getProperties()->getNamespace();
+				$this->rawConfigs[$namespace] = [
+					"name"   => (string) $name,
+					"data"   => $blockData,
+					"typeId" => $block->getProperties()->getTypeId(),
+				];
+				$this->registerBlock($block);
+			}catch(\Throwable $e){
+				$errors[(string) $name] = $e->getMessage();
+			}
+		}
+		return $errors;
 	}
 
 	public static function getBlock(string $name, array $data, ?int $presetTypeId = null) : CustomBlockInterface{

@@ -37,14 +37,44 @@ final class CustomEntityManager{
 		);
 	}
 
-	public function registerDefaultEntities(array $data) : void{
+	/**
+	 * Validates config data without registering anything.
+	 * Returns an array of [name => errorMessage] for invalid entries.
+	 *
+	 * @return array<string, string>
+	 */
+	public function validateConfig(array $data) : array{
+		$errors = [];
+		foreach($data as $name => $entityData){
+			try{
+				new CustomEntityProperties((string) $name, (array) $entityData);
+			}catch(\Throwable $e){
+				$errors[(string) $name] = $e->getMessage();
+			}
+		}
+		return $errors;
+	}
+
+	/**
+	 * Registers all entities from config data.
+	 * Returns an array of [name => errorMessage] for failed entities.
+	 *
+	 * @return array<string, string>
+	 */
+	public function registerDefaultEntities(array $data) : array{
+		$errors = [];
 		if(count($data) === 0){
-			return;
+			return $errors;
 		}
 		$this->ensureFactoryRegistered();
 		foreach($data as $name => $entityData){
-			$this->registerEntity((string) $name, (array) $entityData);
+			try{
+				$this->registerEntity((string) $name, (array) $entityData);
+			}catch(\Throwable $e){
+				$errors[(string) $name] = $e->getMessage();
+			}
 		}
+		return $errors;
 	}
 
 	public function registerEntity(string $name, array $data) : void{

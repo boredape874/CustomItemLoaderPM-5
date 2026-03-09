@@ -8,6 +8,7 @@ use customloader\item\CustomArmorItem;
 use customloader\item\CustomDurableItem;
 use customloader\item\CustomFoodItem;
 use customloader\item\CustomItem;
+use customloader\item\CustomItemInterface;
 use customloader\item\CustomItemTrait;
 use customloader\item\CustomToolItem;
 use customloader\item\properties\CustomItemProperties;
@@ -29,37 +30,40 @@ use function strtolower;
 final class CustomItemManager{
 	use SingletonTrait;
 
-	/** @var Item[] */
-	private array $registered = [];
+	/** @var array<string, Item> namespace => item (O(1) lookup) */
+	private array $byNamespace = [];
 	/** @var ItemTypeEntry[] */
 	private array $itemTypeEntries = [];
 
 	public function __construct(){}
 
-	public function getItems() : array{ return $this->registered; }
+	/** @return Item[] */
+	public function getItems() : array{ return array_values($this->byNamespace); }
 
+	/** O(1) — namespace로 아이템 인스턴스 반환 */
+	public function getItemByNamespace(string $namespace) : ?Item{
+		return $this->byNamespace[$namespace] ?? null;
+	}
+
+	/** O(1) — Item이 커스텀 아이템인지 확인 */
 	public function isCustomItem(Item $item) : bool{
-		foreach($this->registered as $other){
-			if($item->equals($other, false, false)){
-				return true;
-			}
-		}
-		return false;
+		return $item instanceof CustomItemInterface;
 	}
 
 	/** @param CustomItemTrait|Item $item */
 	public function registerItem($item) : void{
 		try{
-			$runtimeId = $item->getProperties()->getRuntimeId();
+			$namespace  = $item->getProperties()->getNamespace();
+			$runtimeId  = $item->getProperties()->getRuntimeId();
 			$this->itemTypeEntries[] = new ItemTypeEntry(
-				$item->getProperties()->getNamespace(),
+				$namespace,
 				$runtimeId,
 				true,
 				1,
 				new CacheableNbt($item->getProperties()->getNbt(true))
 			);
-			$this->registered[] = $item;
-			$this->internalRegisterItem(clone $item, $runtimeId, true, $item->getProperties()->getNamespace());
+			$this->byNamespace[$namespace] = $item;
+			$this->internalRegisterItem(clone $item, $runtimeId, true, $namespace);
 		}catch(Throwable $e){
 			throw new \InvalidArgumentException("Failed to register item: " . $e->getMessage(), $e->getLine(), $e);
 		}
@@ -67,10 +71,40 @@ final class CustomItemManager{
 
 	public function getEntries() : array{ return $this->itemTypeEntries; }
 
-	public function registerDefaultItems(array $data) : void{
+	/**
+	 * Registers all items from config data.
+	 * Returns an array of [name => errorMessage] for failed items.
+	 *
+	 * @return array<string, string>
+	 */
+	/**
+	 * Validates config data without registering anything.
+	 * Returns an array of [name => errorMessage] for invalid entries.
+	 *
+	 * @return array<string, string>
+	 */
+	public function validateConfig(array $data) : array{
+		$errors = [];
 		foreach($data as $name => $itemData){
-			$this->registerItem(self::getItem($name, $itemData));
+			try{
+				self::getItem((string) $name, (array) $itemData);
+			}catch(\Throwable $e){
+				$errors[(string) $name] = $e->getMessage();
+			}
 		}
+		return $errors;
+	}
+
+	public function registerDefaultItems(array $data) : array{
+		$errors = [];
+		foreach($data as $name => $itemData){
+			try{
+				$this->registerItem(self::getItem((string) $name, $itemData));
+			}catch(\Throwable $e){
+				$errors[(string) $name] = $e->getMessage();
+			}
+		}
+		return $errors;
 	}
 
 	public static function getItem(string $name, array $data) : Item{

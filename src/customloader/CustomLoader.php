@@ -37,30 +37,32 @@ class CustomLoader extends PluginBase{
 			throw new RuntimeException(sprintf('Directory "%s" was not created', $dir));
 		}
 
-		try{
-			CustomItemManager::getInstance()->registerDefaultItems($this->getConfig()->get("items", []));
-		}catch(\Throwable $e){
-			$this->getLogger()->critical("Failed to load custom items: " . $e->getMessage());
-			$this->getLogger()->logException($e);
-			$this->getServer()->getPluginManager()->disablePlugin($this);
-			return;
+		// ── 커스텀 아이템 ─────────────────────────────────────────────────────
+		$itemErrors = CustomItemManager::getInstance()->registerDefaultItems(
+			$this->getConfig()->get("items", [])
+		);
+		foreach($itemErrors as $name => $msg){
+			$this->getLogger()->error("[items.$name] $msg");
+		}
+		if(count($itemErrors) > 0){
+			$this->getLogger()->warning(count($itemErrors) . " item(s) failed to load. Check errors above.");
 		}
 
-		try{
-			CustomBlockManager::getInstance()->registerDefaultBlocks($this->getConfig()->get("blocks", []));
-		}catch(\Throwable $e){
-			$this->getLogger()->critical("Failed to load custom blocks: " . $e->getMessage());
-			$this->getLogger()->logException($e);
-			$this->getServer()->getPluginManager()->disablePlugin($this);
-			return;
+		// ── 커스텀 블록 ──────────────────────────────────────────────────────
+		$blockErrors = CustomBlockManager::getInstance()->registerDefaultBlocks(
+			$this->getConfig()->get("blocks", [])
+		);
+		foreach($blockErrors as $name => $msg){
+			$this->getLogger()->error("[blocks.$name] $msg");
+		}
+		if(count($blockErrors) > 0){
+			$this->getLogger()->warning(count($blockErrors) . " block(s) failed to load. Check errors above.");
 		}
 
-		// Sync custom block state handlers to async worker threads (for correct chunk save/load)
+		// ── 비동기 워커에 블록 스테이트 핸들러 동기화 ──────────────────────────
 		$rawConfigs = CustomBlockManager::getInstance()->getRawConfigs();
 		if(count($rawConfigs) > 0){
 			$this->getServer()->getAsyncPool()->addWorkerStartHook(static function(int $worker) use ($rawConfigs) : void{
-				// submit a task to each new worker to register block state handlers
-				// Note: we call submitTaskToWorker from within the hook — use global access
 				\pocketmine\Server::getInstance()->getAsyncPool()->submitTaskToWorker(
 					new BlockRegistrationTask($rawConfigs),
 					$worker
@@ -68,13 +70,15 @@ class CustomLoader extends PluginBase{
 			});
 		}
 
-		try{
-			CustomEntityManager::getInstance()->registerDefaultEntities($this->getConfig()->get("entities", []));
-		}catch(\Throwable $e){
-			$this->getLogger()->critical("Failed to load custom entities: " . $e->getMessage());
-			$this->getLogger()->logException($e);
-			$this->getServer()->getPluginManager()->disablePlugin($this);
-			return;
+		// ── 커스텀 엔티티 ─────────────────────────────────────────────────────
+		$entityErrors = CustomEntityManager::getInstance()->registerDefaultEntities(
+			$this->getConfig()->get("entities", [])
+		);
+		foreach($entityErrors as $name => $msg){
+			$this->getLogger()->error("[entities.$name] $msg");
+		}
+		if(count($entityErrors) > 0){
+			$this->getLogger()->warning(count($entityErrors) . " entity(ies) failed to load. Check errors above.");
 		}
 
 		// ── 루트 테이블 ─────────────────────────────────────────────────────
@@ -82,8 +86,9 @@ class CustomLoader extends PluginBase{
 			LootTableManager::getInstance()->registerDefaultLootTables(
 				$this->getConfig()->get("loot_tables", [])
 			);
-			if(LootTableManager::getInstance()->getTableCount() > 0){
-				$this->getLogger()->info("Loaded " . LootTableManager::getInstance()->getTableCount() . " loot table(s).");
+			$tableCount = LootTableManager::getInstance()->getTableCount();
+			if($tableCount > 0){
+				$this->getLogger()->info("Loaded $tableCount loot table(s).");
 			}
 		}catch(\Throwable $e){
 			$this->getLogger()->warning("Failed to load loot tables: " . $e->getMessage());
@@ -95,8 +100,9 @@ class CustomLoader extends PluginBase{
 				$this->getConfig()->get("recipes", []),
 				$this->getServer()->getCraftingManager()
 			);
-			if(CustomRecipeManager::getInstance()->getRecipeCount() > 0){
-				$this->getLogger()->info("Loaded " . CustomRecipeManager::getInstance()->getRecipeCount() . " custom recipe(s).");
+			$recipeCount = CustomRecipeManager::getInstance()->getRecipeCount();
+			if($recipeCount > 0){
+				$this->getLogger()->info("Loaded $recipeCount custom recipe(s).");
 			}
 		}catch(\Throwable $e){
 			$this->getLogger()->warning("Failed to load recipes: " . $e->getMessage());
