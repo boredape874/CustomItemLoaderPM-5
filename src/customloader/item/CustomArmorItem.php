@@ -9,7 +9,7 @@ use pocketmine\item\Armor;
 use pocketmine\item\ArmorTypeInfo;
 use pocketmine\item\ItemIdentifier;
 
-class CustomArmorItem extends Armor{
+class CustomArmorItem extends Armor implements CustomItemInterface{
 	use CustomItemTrait;
 
 	public function __construct(string $name, CustomItemProperties $properties){

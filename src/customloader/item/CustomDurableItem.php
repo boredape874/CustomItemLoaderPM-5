@@ -8,7 +8,7 @@ use pocketmine\block\Block;
 use pocketmine\entity\Entity;
 use pocketmine\item\Durable;
 
-class CustomDurableItem extends Durable{
+class CustomDurableItem extends Durable implements CustomItemInterface{
 	use CustomItemTrait;
 
 	public function getMaxDurability() : int{

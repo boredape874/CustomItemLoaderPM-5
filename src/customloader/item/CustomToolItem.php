@@ -6,7 +6,7 @@ namespace customloader\item;
 
 use pocketmine\item\Tool;
 
-final class CustomToolItem extends Tool{
+final class CustomToolItem extends Tool implements CustomItemInterface{
 	use CustomItemTrait {
 		getMiningEfficiency as customGetMiningEfficiency;
 	}

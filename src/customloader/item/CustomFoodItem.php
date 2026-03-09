@@ -7,7 +7,7 @@ namespace customloader\item;
 use pocketmine\item\Food;
 use pocketmine\item\Item;
 
-class CustomFoodItem extends Food{
+class CustomFoodItem extends Food implements CustomItemInterface{
 	use CustomItemTrait;
 
 	public function getMaxStackSize() : int{

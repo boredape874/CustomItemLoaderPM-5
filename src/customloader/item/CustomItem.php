@@ -6,6 +6,6 @@ namespace customloader\item;
 
 use pocketmine\item\Item;
 
-class CustomItem extends Item{
+class CustomItem extends Item implements CustomItemInterface{
 	use CustomItemTrait;
 }

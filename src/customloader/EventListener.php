@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace customloader;
 
 use customloader\event\hook\EventHookParser;
-use customloader\item\CustomItem;
+use customloader\item\CustomItemInterface;
 use customloader\manager\CustomBlockManager;
-use customloader\manager\CustomItemManager;
 use pocketmine\event\block\BlockBreakEvent;
 use pocketmine\event\block\BlockPlaceEvent;
 use pocketmine\event\entity\EntityDamageByEntityEvent;
@@ -112,8 +111,8 @@ final class EventListener implements Listener{
 	public function onPlayerItemUse(PlayerItemUseEvent $event) : void{
 		$item = $event->getItem();
 
-		// Custom items carry their properties via CustomItem
-		if(!($item instanceof CustomItem)){
+		// CustomItemInterface covers CustomItem, CustomFoodItem, CustomArmorItem, etc.
+		if(!($item instanceof CustomItemInterface)){
 			return;
 		}
 		$props = $item->getProperties();
@@ -136,7 +135,7 @@ final class EventListener implements Listener{
 		}
 
 		$item = $attacker->getInventory()->getItemInHand();
-		if(!($item instanceof CustomItem)){
+		if(!($item instanceof CustomItemInterface)){
 			return;
 		}
 
