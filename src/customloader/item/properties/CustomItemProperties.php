@@ -67,6 +67,18 @@ final class CustomItemProperties{
 	/** Furnace burn time in ticks (0 = not a fuel). Wood = 300 ticks */
 	private int $fuelBurnTime = 0;
 
+	// ── 애니메이션 / 이펙트 ───────────────────────────────────────────────────
+	/** 들고 있을 때 서버가 주기적으로 스폰하는 파티클 namespace */
+	private string $holdParticle = "";
+	/** 파티클 스폰 주기 (틱, 기본 20 = 1초) */
+	private int $holdParticleInterval = 20;
+	/** 공격 시 AnimatePacket 타입: "crit" | "magic_crit" | "" */
+	private string $attackAnimate = "";
+	/** RP attachable: 들고 있을 때 재생할 애니메이션 ID */
+	private string $holdAnimation = "";
+	/** RP attachable: 공격(is_attacking) 시 재생할 애니메이션 ID */
+	private string $attackAnimation = "";
+
 	/** @var Component[] */
 	private array $components = [];
 	private CompoundTag $rootNBT;
@@ -200,6 +212,13 @@ final class CustomItemProperties{
 			$this->fuelBurnTime = max(0, (int) $data["fuel"]);
 		}
 
+		// Animation / visual effects
+		$this->holdParticle         = (string) ($data["hold_particle"] ?? "");
+		$this->holdParticleInterval = max(1, (int) ($data["hold_particle_interval"] ?? 20));
+		$this->attackAnimate        = (string) ($data["attack_animate"] ?? "");
+		$this->holdAnimation        = (string) ($data["hold_animation"] ?? "");
+		$this->attackAnimation      = (string) ($data["attack_animation"] ?? "");
+
 		// Event hooks — parsed lazily so unknown action types are skipped silently
 		if(isset($data["on_use"]) && is_array($data["on_use"])){
 			$this->onUseHooks = EventHookParser::parse($data["on_use"]);
@@ -266,6 +285,23 @@ final class CustomItemProperties{
 
 	/** Returns true if this item can be used as furnace fuel */
 	public function isFuel() : bool{ return $this->fuelBurnTime > 0; }
+
+	// ── 애니메이션 / 이펙트 ───────────────────────────────────────────────────
+
+	/** 들고 있을 때 주기적으로 스폰할 파티클 namespace ("" = 없음) */
+	public function getHoldParticle() : string{ return $this->holdParticle; }
+
+	/** 파티클 스폰 주기 (틱) */
+	public function getHoldParticleInterval() : int{ return $this->holdParticleInterval; }
+
+	/** 공격 시 AnimatePacket 타입 ("crit" | "magic_crit" | "" = 없음) */
+	public function getAttackAnimate() : string{ return $this->attackAnimate; }
+
+	/** RP attachable: 들고 있을 때 애니메이션 ID ("" = 없음) */
+	public function getHoldAnimation() : string{ return $this->holdAnimation; }
+
+	/** RP attachable: 공격 시 애니메이션 ID ("" = 없음) */
+	public function getAttackAnimation() : string{ return $this->attackAnimation; }
 
 	public function getNbt(bool $rebuild = false) : CompoundTag{
 		if($rebuild){

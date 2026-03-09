@@ -17,6 +17,7 @@ use Symfony\Component\Filesystem\Path;
 use ZipArchive;
 use function array_merge;
 use function explode;
+use function file_exists;
 use function file_get_contents;
 use function file_put_contents;
 use function implode;
@@ -83,6 +84,9 @@ final class ResourcePackBuilder{
 		if(count($entities) > 0){
 			$this->writeAnimationFiles($entities);
 		}
+		if(count($items) > 0){
+			$this->writeItemAttachableFiles($items);
+		}
 	}
 
 	private function createDirectories() : void{
@@ -99,6 +103,7 @@ final class ResourcePackBuilder{
 			Path::join($this->rpDir, "particles"),
 			Path::join($this->rpDir, "animations"),
 			Path::join($this->rpDir, "animation_controllers"),
+			Path::join($this->rpDir, "attachables"),
 			$this->bpDir,
 			Path::join($this->bpDir, "blocks"),
 			Path::join($this->bpDir, "entities"),
@@ -486,6 +491,79 @@ final class ResourcePackBuilder{
 			}
 		}
 		$zip->close();
+	}
+
+	/**
+	 * hold_animation / attack_animation 이 있는 아이템에 대해
+	 * Bedrock attachable JSON과 애니메이션 스텁을 자동 생성.
+	 *
+	 * 생성 파일:
+	 *   attachables/{safeId}.json        — 클라이언트 attachable 정의
+	 *   animations/{safeId}.animation.json — 애니메이션 스텁 (미존재 시만)
+	 *
+	 * @param CustomItemProperties[] $items
+	 */
+	public function writeItemAttachableFiles(array $items) : void{
+		$attachableDir = Path::join($this->rpDir, "attachables");
+		$animDir       = Path::join($this->rpDir, "animations");
+
+		foreach($items as $props){
+			$holdAnim   = $props->getHoldAnimation();
+			$attackAnim = $props->getAttackAnimation();
+
+			if($holdAnim === "" && $attackAnim === ""){
+				continue;
+			}
+
+			$ns     = $props->getNamespace();
+			$safeId = str_replace(":", "_", $ns);
+
+			// ── attachable definition ──
+			$animations    = [];
+			$scriptAnimate = [];
+
+			if($holdAnim !== ""){
+				$animations["hold"] = $holdAnim;
+				$scriptAnimate[]    = "hold";
+			}
+			if($attackAnim !== ""){
+				$animations["attack"] = $attackAnim;
+				$scriptAnimate[]      = ["attack" => "query.is_attacking"];
+			}
+
+			$attachable = [
+				"format_version"      => "1.10.0",
+				"minecraft:attachable" => [
+					"description" => [
+						"identifier"          => $ns,
+						"materials"           => ["default" => "entity_alphatest_glint"],
+						"textures"            => ["default" => "textures/items/{$props->getTexture()}"],
+						"geometry"            => ["default" => "geometry.humanoid.handheld"],
+						"animations"          => $animations,
+						"scripts"             => ["animate" => $scriptAnimate],
+						"render_controllers"  => ["controller.render.item_default"],
+					],
+				],
+			];
+			$this->writeJson(Path::join($attachableDir, "{$safeId}.json"), $attachable);
+
+			// ── animation stub (기존 파일 덮어쓰지 않음) ──
+			$animPath    = Path::join($animDir, "{$safeId}.animation.json");
+			if(!file_exists($animPath)){
+				$animEntries = [];
+				foreach($animations as $shortName => $animId){
+					$animEntries[$animId] = [
+						"loop"             => $shortName === "hold",
+						"animation_length" => 1.0,
+						"bones"            => new \stdClass(),
+					];
+				}
+				$this->writeJson($animPath, [
+					"format_version" => "1.8.0",
+					"animations"     => $animEntries,
+				]);
+			}
+		}
 	}
 
 	/**

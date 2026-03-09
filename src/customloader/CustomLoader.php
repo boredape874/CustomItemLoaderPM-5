@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace customloader;
 
 use customloader\command\CustomLoaderCommand;
+use customloader\item\CustomItemInterface;
 use customloader\manager\CustomBlockManager;
 use customloader\manager\CustomEntityManager;
 use customloader\manager\CustomItemManager;
@@ -14,6 +15,7 @@ use customloader\manager\LootTableManager;
 use customloader\recipe\CustomRecipeManager;
 use customloader\task\BlockRegistrationTask;
 use customloader\task\EntitySpawnTask;
+use customloader\task\HoldingItemTask;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\SingletonTrait;
 use RuntimeException;
@@ -134,6 +136,18 @@ class CustomLoader extends PluginBase{
 				400 // every 20 seconds
 			);
 			$this->getLogger()->info("Registered " . count($spawnRules) . " entity spawn rule(s).");
+		}
+
+		// ── hold_particle 스케줄러 ───────────────────────────────────────────
+		$hasHoldParticle = false;
+		foreach(CustomItemManager::getInstance()->getItems() as $item){
+			if($item instanceof CustomItemInterface && $item->getProperties()->getHoldParticle() !== ""){
+				$hasHoldParticle = true;
+				break;
+			}
+		}
+		if($hasHoldParticle){
+			$this->getScheduler()->scheduleRepeatingTask(new HoldingItemTask(), 1);
 		}
 
 		$this->getServer()->getPluginManager()->registerEvents(new EventListener(), $this);

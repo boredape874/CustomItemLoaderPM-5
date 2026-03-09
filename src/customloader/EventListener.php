@@ -17,6 +17,7 @@ use pocketmine\event\player\PlayerItemConsumeEvent;
 use pocketmine\event\player\PlayerItemUseEvent;
 use pocketmine\event\player\PlayerQuitEvent;
 use pocketmine\event\server\DataPacketSendEvent;
+use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\ResourcePackStackPacket;
 use pocketmine\network\mcpe\protocol\StartGamePacket;
 use pocketmine\network\mcpe\protocol\types\BlockPaletteEntry;
@@ -187,12 +188,29 @@ final class EventListener implements Listener{
 			return;
 		}
 
-		$hooks = $item->getProperties()->getOnAttackHooks();
-		if(count($hooks) === 0){
-			return;
+		$props = $item->getProperties();
+
+		$hooks = $props->getOnAttackHooks();
+		if(count($hooks) > 0){
+			EventHookParser::execute($hooks, $attacker, $event->getEntity());
 		}
 
-		EventHookParser::execute($hooks, $attacker, $event->getEntity());
+		// attack_animate: 서버가 AnimatePacket으로 특수 이펙트 브로드캐스트
+		$attackAnimate = $props->getAttackAnimate();
+		if($attackAnimate !== ""){
+			$action = match($attackAnimate){
+				"crit"       => AnimatePacket::ACTION_CRITICAL_HIT,
+				"magic_crit" => AnimatePacket::ACTION_MAGIC_CRITICAL_HIT,
+				default      => null,
+			};
+			if($action !== null){
+				$pk = AnimatePacket::create($attacker->getId(), $action);
+				foreach($attacker->getViewers() as $viewer){
+					$viewer->getNetworkSession()->sendDataPacket($pk);
+				}
+				$attacker->getNetworkSession()->sendDataPacket($pk);
+			}
+		}
 	}
 
 	/**
