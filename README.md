@@ -8,6 +8,7 @@
 [![PocketMine-MP](https://img.shields.io/badge/PocketMine--MP-5.x-orange)](https://github.com/pmmp/PocketMine-MP)
 [![License](https://img.shields.io/badge/License-LGPL--3.0-blue)](./LICENSE)
 [![API](https://img.shields.io/badge/API-5.0.0-brightgreen)](https://github.com/pmmp/PocketMine-MP)
+[![CI](https://github.com/boredape874/CustomItemLoaderPM-5/actions/workflows/ci.yml/badge.svg)](https://github.com/boredape874/CustomItemLoaderPM-5/actions/workflows/ci.yml)
 
 <br/>
 
@@ -23,9 +24,13 @@
 
 | 기능 | 설명 |
 |---|---|
-| 🗡️ **커스텀 아이템** | 내구도 · 음식 · 방어구 · 도구 · 쿨다운 등 모든 타입 지원 |
-| 🧱 **커스텀 블록** | 경도 · 채굴 도구 · 드랍 아이템 · 발광 설정 |
-| 🐾 **커스텀 엔티티** | Goal 기반 AI (배회 · 추격 · 공격 · 반격) |
+| 🗡️ **커스텀 아이템** | 내구도 · 음식 · 방어구 · 도구 · 쿨다운 · 연료 등 모든 타입 지원 |
+| 🧱 **커스텀 블록** | cube / slab / stair / fence / leaves 5가지 형태 지원 |
+| 🐾 **커스텀 엔티티** | Goal 기반 AI (배회 · 추격 · 공격 · 반격 · 스폰 규칙) |
+| ⚡ **이벤트 훅** | 우클릭 · 공격 · 섭취 · 파괴 · 설치 · 상호작용 시 액션 실행 |
+| 🎲 **루트 테이블** | 가중치 기반 드랍 테이블로 복잡한 드랍 구성 |
+| 📜 **커스텀 레시피** | shaped / shapeless / 화로 / 용광로 / 훈연기 / 석재 절단기 |
+| 🔊 **사운드 / 파티클** | 커스텀 사운드·파티클 등록 및 훅에서 재생 |
 | 📦 **리소스팩 자동 빌드** | `/cl build` 한 방으로 `.mcpack` 파일 생성 |
 | ⚙️ **YAML 설정** | 코드 없이 `config.yml` 수정만으로 콘텐츠 추가 |
 
@@ -48,39 +53,53 @@
 # plugins/CustomLoader/config.yml
 
 items:
-  my_sword:
-    namespace: "mypack:my_sword"
-    texture: "my_sword"
+  fire_sword:
+    namespace: "mypack:fire_sword"
+    texture: "fire_sword"
     attack_points: 8
     hand_equipped: true
+    durable: true
+    max_durability: 500
     add_creative_inventory: true
+    on_attack:
+      - action: set_on_fire
+        seconds: 3
+        target: target
+      - action: give_xp
+        amount: 1
 
 blocks:
-  my_ore:
-    namespace: "mypack:my_ore"
-    texture: "my_ore"
+  ruby_ore:
+    namespace: "mypack:ruby_ore"
+    texture: "ruby_ore"
     hardness: 3.0
     tool_type: "pickaxe"
-    tool_tier: 1
+    tool_tier: 2
+    xp_drop: { min: 3, max: 7 }
     drops:
       - id: "minecraft:diamond"
         count: 1
         chance: 1.0
+    on_break:
+      - action: play_sound
+        sound: "dig.stone"
+        volume: 1.0
+        pitch: 0.8
 
 entities:
-  my_mob:
-    namespace: "mypack:my_mob"
-    texture: "my_mob"
-    width: 0.6
-    height: 1.8
-    max_health: 20
-    attack_damage: 3.0
+  ruby_golem:
+    namespace: "mypack:ruby_golem"
+    texture: "ruby_golem"
+    width: 1.4
+    height: 2.9
+    max_health: 100
+    attack_damage: 15.0
     movement_speed: 0.25
     goals:
       - { type: float,              priority: 0 }
       - { type: hurt_by_target,     priority: 1 }
-      - { type: melee_attack,       priority: 2, speed_modifier: 1.0 }
-      - { type: nearest_attackable, priority: 3, distance: 16.0, target: player }
+      - { type: melee_attack,       priority: 2, speed_modifier: 0.8 }
+      - { type: nearest_attackable, priority: 3, distance: 20.0, target: player }
       - { type: random_stroll,      priority: 7, speed_modifier: 1.0 }
       - { type: look_at_entity,     priority: 8, look_distance: 8.0 }
 ```
@@ -115,6 +134,8 @@ plugins/CustomLoader/
 │       │   └── entity/         ← 엔티티 텍스처 PNG
 │       ├── models/entity/      ← 커스텀 모델 .geo.json (선택)
 │       ├── entity/             ← 클라이언트 엔티티 정의 (자동 생성)
+│       ├── sounds/             ← 커스텀 사운드 .ogg
+│       ├── particles/          ← 커스텀 파티클 JSON (자동 생성)
 │       └── texts/en_US.lang    ← 이름 현지화 (자동 생성)
 └── behavior_packs/
     └── mypack/
@@ -134,7 +155,40 @@ plugins/CustomLoader/
 | `/cl create <팩이름> [설명]` | 리소스팩 + 비헤이비어팩 폴더 생성 |
 | `/cl build <팩이름>` | `.mcpack` 파일 빌드 |
 | `/cl additem <팩> <이름> <namespace>` | 아이템 항목 수동 추가 |
-| `/cl reload` | config.yml 리로드 (전체 적용은 재시작 필요) |
+| `/cl reload` | config.yml 리로드 |
+
+---
+
+## 🧱 블록 타입
+
+| 타입 | 설명 |
+|---|---|
+| `cube` | 기본 정육면체 블록 (기본값) |
+| `slab` | 반 블록 (아래/위/양면 배치 지원) |
+| `stair` | 계단 (방향·뒤집기 지원) |
+| `fence` | 울타리 (인접 울타리 자동 연결) |
+| `leaves` | 낙엽 (`no_decay: true`로 소멸 방지) |
+
+---
+
+## ⚡ 이벤트 훅 & 액션
+
+훅에서 사용할 수 있는 액션 목록:
+
+| 액션 | 설명 |
+|---|---|
+| `give_effect` | 포션 효과 부여 |
+| `set_health` | 체력 add / remove / set |
+| `set_on_fire` | 불 붙이기 |
+| `give_xp` | 경험치 추가/차감 |
+| `give_item` | 아이템 지급 |
+| `play_sound` | 사운드 재생 |
+| `play_particle` | 파티클 재생 |
+| `spawn_entity` | 엔티티 소환 |
+| `run_command` | 서버 커맨드 실행 (`{player}` 치환 가능) |
+| `damage` | 직접 피해 입히기 |
+
+액션 상세 옵션 → **[CONFIGURATION.md — 이벤트 액션](./CONFIGURATION.md#-이벤트-액션-actions)**
 
 ---
 
@@ -146,7 +200,7 @@ plugins/CustomLoader/
 | `random_stroll` | 무작위 배회 | `speed_modifier` |
 | `melee_attack` | 근접 공격 | `speed_modifier` |
 | `look_at_entity` | 엔티티 바라보기 | `look_distance` |
-| `hurt_by_target` | 공격받으면 반격 | — |
+| `hurt_by_target` | 피격 반격 | — |
 | `nearest_attackable` | 가장 가까운 타겟 추적 | `distance`, `target` |
 
 ---
@@ -183,6 +237,11 @@ items:
     saturation: 8.0
     can_always_eat: false
     add_creative_inventory: true
+    on_eat:
+      - action: give_effect
+        effect: regeneration
+        duration: 100
+        amplifier: 0
 ```
 
 </details>
@@ -206,41 +265,51 @@ items:
 </details>
 
 <details>
-<summary>⚔️ 내구도 아이템 (Durable)</summary>
+<summary>🔥 화로 연료 (Fuel)</summary>
 
 ```yaml
 items:
-  my_blade:
-    namespace: "mypack:my_blade"
-    texture: "my_blade"
-    durable: true
-    max_durability: 500
-    attack_points: 7
-    hand_equipped: true
+  custom_coal:
+    namespace: "mypack:custom_coal"
+    texture: "custom_coal"
+    fuel: 1600     # 바닐라 석탄과 동일 (틱 단위)
+    add_creative_inventory: true
 ```
 
 </details>
 
 <details>
-<summary>🧱 커스텀 블록 (Block)</summary>
+<summary>🧱 슬랩 / 계단 / 울타리 / 낙엽</summary>
 
 ```yaml
 blocks:
-  ruby_ore:
-    namespace: "mypack:ruby_ore"
-    texture: "ruby_ore"
-    hardness: 3.0
-    blast_resistance: 3.0
-    tool_type: "pickaxe"    # pickaxe / axe / shovel / hoe / sword / shears / none
-    tool_tier: 2
-    light_emission: 0
-    drops:
-      - id: "minecraft:diamond"
-        count: 1
-        chance: 0.5
-      - id: "minecraft:cobblestone"
-        count: 1
-        chance: 1.0
+  my_slab:
+    namespace: "mypack:my_slab"
+    texture: "my_slab"
+    type: slab
+    hardness: 2.0
+    tool_type: "pickaxe"
+    tool_tier: 1
+
+  my_stair:
+    namespace: "mypack:my_stair"
+    texture: "my_stair"
+    type: stair
+    hardness: 2.0
+
+  my_fence:
+    namespace: "mypack:my_fence"
+    texture: "my_fence"
+    type: fence
+    hardness: 2.0
+    tool_type: "axe"
+
+  magic_leaves:
+    namespace: "mypack:magic_leaves"
+    texture: "magic_leaves"
+    type: leaves
+    no_decay: true
+    light_emission: 5
 ```
 
 </details>
@@ -260,6 +329,12 @@ blocks:
 
 **Q. 설정 변경이 바로 적용되지 않아요**
 > 블록·아이템·엔티티 추가/변경은 서버 재시작이 필요합니다. `/cl reload`는 config 파일만 다시 읽습니다.
+
+**Q. on_attack 훅이 안 작동해요**
+> 아이템이 `CustomItemInterface`를 구현해야 합니다. CustomLoader로 등록된 아이템만 훅이 작동합니다.
+
+**Q. 블록 드랍이 두 번 나와요**
+> `drops`와 `loot_table`을 동시에 설정하면 `loot_table`만 사용됩니다. 하나만 쓰세요.
 
 ---
 

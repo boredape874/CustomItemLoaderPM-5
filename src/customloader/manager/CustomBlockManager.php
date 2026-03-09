@@ -30,8 +30,10 @@ use Throwable;
 final class CustomBlockManager{
 	use SingletonTrait;
 
-	/** @var CustomBlockInterface[] All registered custom blocks (cubes, slabs, stairs) */
-	private array $registered = [];
+	/** @var array<int, CustomBlockInterface> typeId => block (O(1) lookup) */
+	private array $byTypeId = [];
+	/** @var array<string, CustomBlockInterface> namespace => block (O(1) lookup) */
+	private array $byNamespace = [];
 	/** @var BlockPaletteEntry[] */
 	private array $paletteEntries = [];
 	/** @var array<string, array{name: string, data: array<string, mixed>}> namespace => raw config */
@@ -39,7 +41,8 @@ final class CustomBlockManager{
 
 	public function __construct(){}
 
-	public function getBlocks() : array{ return $this->registered; }
+	/** @return CustomBlockInterface[] */
+	public function getBlocks() : array{ return array_values($this->byTypeId); }
 
 	/** @return BlockPaletteEntry[] */
 	public function getPaletteEntries() : array{ return $this->paletteEntries; }
@@ -47,54 +50,47 @@ final class CustomBlockManager{
 	/** @return array<string, array{name: string, data: array<string, mixed>}> */
 	public function getRawConfigs() : array{ return $this->rawConfigs; }
 
+	/** O(1) — 등록된 커스텀 블록인지 확인 */
 	public function isCustomBlock(Block $block) : bool{
-		foreach($this->registered as $other){
-			// CustomBlockInterface objects are also Blocks, so getTypeId() is safe
-			if($block->getTypeId() === ($other instanceof Block ? $other->getTypeId() : -1)){
-				return true;
-			}
-		}
-		return false;
+		return isset($this->byTypeId[$block->getTypeId()]);
+	}
+
+	/** O(1) — namespace로 커스텀 블록 조회 */
+	public function getCustomBlockByNamespace(string $namespace) : ?CustomBlockInterface{
+		return $this->byNamespace[$namespace] ?? null;
+	}
+
+	/** O(1) — Block의 typeId로 커스텀 블록 인스턴스 반환 */
+	public function getCustomBlock(Block $block) : ?CustomBlockInterface{
+		return $this->byTypeId[$block->getTypeId()] ?? null;
 	}
 
 	/** @return Item[] */
 	public function getDrops(Block $block) : array{
-		foreach($this->registered as $customBlock){
-			if(!($customBlock instanceof Block)){
-				continue;
-			}
-			if($block->getTypeId() === $customBlock->getTypeId()){
-				$props = $customBlock->getProperties();
-				// Prefer loot table drops when a loot table is configured
-				$lootTable = $props->getLootTable();
-				if($lootTable !== null){
-					return LootTableManager::getInstance()->roll($lootTable);
-				}
-				return $props->getDropItems();
-			}
+		$customBlock = $this->byTypeId[$block->getTypeId()] ?? null;
+		if($customBlock === null){
+			return [];
 		}
-		return [];
-	}
-
-	/** Returns the CustomBlockInterface instance for a given block's typeId, or null. */
-	public function getCustomBlock(Block $block) : ?CustomBlockInterface{
-		foreach($this->registered as $customBlock){
-			if($customBlock instanceof Block && $block->getTypeId() === $customBlock->getTypeId()){
-				return $customBlock;
-			}
+		$props = $customBlock->getProperties();
+		$lootTable = $props->getLootTable();
+		if($lootTable !== null){
+			return LootTableManager::getInstance()->roll($lootTable);
 		}
-		return null;
+		return $props->getDropItems();
 	}
 
 	/**
 	 * Registers any block that implements CustomBlockInterface.
-	 * Accepts CustomBlock (cube), CustomSlabBlock, and CustomStairBlock.
+	 * Accepts CustomBlock (cube), CustomSlabBlock, CustomStairBlock, CustomFenceBlock, CustomLeavesBlock.
 	 */
 	public function registerBlock(CustomBlockInterface $block) : void{
 		try{
-			$this->registered[] = $block;
 			/** @var Block $block */
-			$this->internalRegisterBlock($block, $block->getProperties()->getNamespace());
+			$namespace = $block->getProperties()->getNamespace();
+			$typeId    = $block->getTypeId();
+			$this->byTypeId[$typeId]       = $block;
+			$this->byNamespace[$namespace] = $block;
+			$this->internalRegisterBlock($block, $namespace);
 		}catch(Throwable $e){
 			throw new \InvalidArgumentException("Failed to register block: " . $e->getMessage(), 0, $e);
 		}
@@ -102,22 +98,26 @@ final class CustomBlockManager{
 
 	public function registerDefaultBlocks(array $data) : void{
 		foreach($data as $name => $blockData){
-			$block = self::getBlock((string) $name, $blockData);
+			$block     = self::getBlock((string) $name, $blockData);
 			$namespace = $block->getProperties()->getNamespace();
-			$this->rawConfigs[$namespace] = ["name" => (string) $name, "data" => $blockData, "typeId" => $block->getProperties()->getTypeId()];
+			$this->rawConfigs[$namespace] = [
+				"name"   => (string) $name,
+				"data"   => $blockData,
+				"typeId" => $block->getProperties()->getTypeId(),
+			];
 			$this->registerBlock($block);
 		}
 	}
 
 	public static function getBlock(string $name, array $data, ?int $presetTypeId = null) : CustomBlockInterface{
-		$props = new CustomBlockProperties($name, $data, $presetTypeId);
+		$props     = new CustomBlockProperties($name, $data, $presetTypeId);
 		$breakInfo = new BlockBreakInfo(
 			$props->getHardness(),
 			$props->getToolType(),
 			$props->getToolTier(),
 			$props->getBlastResistance()
 		);
-		$typeInfo = new BlockTypeInfo($breakInfo);
+		$typeInfo   = new BlockTypeInfo($breakInfo);
 		$identifier = new BlockIdentifier($props->getTypeId());
 
 		return match($props->getBlockType()){
