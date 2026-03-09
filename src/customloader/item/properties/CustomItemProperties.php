@@ -93,6 +93,21 @@ final class CustomItemProperties{
 	/** RP armor attachable: 착용 중 루프 재생 애니메이션 ID */
 	private string $wearAnimation = "";
 
+	/**
+	 * 통합 애니메이션 맵: shortName → animId
+	 * 삽입 순서 = scripts.animate 순서 (config에 적힌 순서 = 재생 우선순위)
+	 * 지원 키: hold, attack, use, sneak_use, sneak, sprint, jump, fall, swim, walk, idle, wear
+	 * @var array<string, string>
+	 */
+	private array $animations = [];
+
+	/** @var EventAction[]  점프 시 실행 훅 */
+	private array $onJumpHooks = [];
+	/** @var EventAction[]  달리기 시작 시 실행 훅 */
+	private array $onSprintHooks = [];
+	/** @var EventAction[]  스니크 시작 시 실행 훅 */
+	private array $onSneakStartHooks = [];
+
 	/** @var Component[] */
 	private array $components = [];
 	private CompoundTag $rootNBT;
@@ -254,6 +269,34 @@ final class CustomItemProperties{
 		if(isset($data["on_eat"]) && is_array($data["on_eat"])){
 			$this->onEatHooks = EventHookParser::parse($data["on_eat"]);
 		}
+
+		// ── 통합 animations 맵 구성 ──────────────────────────────────────────
+		// 1단계: 개별 필드를 고정 순서로 삽입 (하위 호환)
+		if($this->holdAnimation !== "")     $this->animations["hold"]      = $this->holdAnimation;
+		if($this->attackAnimation !== "")   $this->animations["attack"]    = $this->attackAnimation;
+		if($this->useAnimation !== "")      $this->animations["use"]       = $this->useAnimation;
+		if($this->sneakUseAnimation !== "") $this->animations["sneak_use"] = $this->sneakUseAnimation;
+		if($this->wearAnimation !== "")     $this->animations["wear"]      = $this->wearAnimation;
+
+		// 2단계: 명시적 animations: 맵 (덮어쓰기 + 확장; 키 순서 = 재생 우선순위)
+		if(isset($data["animations"]) && is_array($data["animations"])){
+			foreach($data["animations"] as $key => $animId){
+				if(is_string($animId) && $animId !== ""){
+					$this->animations[(string) $key] = $animId;
+				}
+			}
+		}
+
+		// 새 훅: on_jump / on_sprint / on_sneak
+		if(isset($data["on_jump"]) && is_array($data["on_jump"])){
+			$this->onJumpHooks = EventHookParser::parse($data["on_jump"]);
+		}
+		if(isset($data["on_sprint"]) && is_array($data["on_sprint"])){
+			$this->onSprintHooks = EventHookParser::parse($data["on_sprint"]);
+		}
+		if(isset($data["on_sneak"]) && is_array($data["on_sneak"])){
+			$this->onSneakStartHooks = EventHookParser::parse($data["on_sneak"]);
+		}
 	}
 
 	public function addComponent(Component $component) : void{
@@ -348,6 +391,22 @@ final class CustomItemProperties{
 
 	/** RP armor attachable: 착용 중 루프 애니메이션 ID ("" = 없음) */
 	public function getWearAnimation() : string{ return $this->wearAnimation; }
+
+	/**
+	 * 통합 애니메이션 맵 반환.
+	 * 키 삽입 순서 = Bedrock scripts.animate 배열 순서.
+	 * @return array<string, string>
+	 */
+	public function getAnimations() : array{ return $this->animations; }
+
+	/** @return EventAction[]  점프 시 실행 훅 */
+	public function getOnJumpHooks() : array{ return $this->onJumpHooks; }
+
+	/** @return EventAction[]  달리기 시작 시 실행 훅 */
+	public function getOnSprintHooks() : array{ return $this->onSprintHooks; }
+
+	/** @return EventAction[]  스니크 시작 시 실행 훅 */
+	public function getOnSneakStartHooks() : array{ return $this->onSneakStartHooks; }
 
 	public function getNbt(bool $rebuild = false) : CompoundTag{
 		if($rebuild){

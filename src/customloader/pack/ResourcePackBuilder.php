@@ -16,8 +16,10 @@ use SplFileInfo;
 use Symfony\Component\Filesystem\Path;
 use ZipArchive;
 use function array_merge;
+use function count;
 use function explode;
 use function file_exists;
+use function in_array;
 use function file_get_contents;
 use function file_put_contents;
 use function implode;
@@ -31,6 +33,27 @@ use function sprintf;
 use function str_replace;
 
 final class ResourcePackBuilder{
+
+	/**
+	 * Molang conditions for each animation trigger shorthand.
+	 * null = unconditional (always plays while attached/equipped).
+	 * The insertion order here is the default fallback order; actual order is
+	 * determined by the config's `animations:` key order.
+	 */
+	private const ANIMATION_CONDITIONS = [
+		"hold"      => null,
+		"wear"      => null,
+		"attack"    => "query.is_attacking",
+		"use"       => "query.is_using_item",
+		"sneak_use" => "query.is_sneaking && query.is_using_item",
+		"sneak"     => "query.is_sneaking",
+		"sprint"    => "query.is_sprinting",
+		"swim"      => "query.is_swimming",
+		"jump"      => "!query.is_on_ground && query.vertical_speed > 0",
+		"fall"      => "!query.is_on_ground && query.vertical_speed < 0",
+		"walk"      => "query.is_on_ground && query.modified_move_speed > 0",
+		"idle"      => "query.is_on_ground && !(query.modified_move_speed > 0)",
+	];
 
 	private string $rpDir;
 	private string $bpDir;
@@ -494,12 +517,12 @@ final class ResourcePackBuilder{
 	}
 
 	/**
-	 * hold_animation / attack_animation 이 있는 아이템에 대해
-	 * Bedrock attachable JSON과 애니메이션 스텁을 자동 생성.
+	 * 아이템에 animations 맵이 있으면 Bedrock attachable JSON + 애니메이션 스텁을 자동 생성.
+	 * 애니메이션 재생 순서는 config의 animations: 키 순서와 동일 (PHP 배열 삽입 순서 보존).
 	 *
 	 * 생성 파일:
-	 *   attachables/{safeId}.json        — 클라이언트 attachable 정의
-	 *   animations/{safeId}.animation.json — 애니메이션 스텁 (미존재 시만)
+	 *   attachables/{safeId}.json           — 클라이언트 attachable 정의
+	 *   animations/{safeId}.animation.json  — 애니메이션 스텁 (미존재 시만 생성)
 	 *
 	 * @param CustomItemProperties[] $items
 	 */
@@ -508,89 +531,88 @@ final class ResourcePackBuilder{
 		$animDir       = Path::join($this->rpDir, "animations");
 
 		foreach($items as $props){
-			// ── 방어구: wear_animation → armor attachable ──────────────────
-			if($props->isArmor() && $props->getWearAnimation() !== ""){
-				$this->writeArmorAttachable($attachableDir, $animDir, $props);
-				continue;
-			}
-
-			// ── 일반 아이템: hold / attack / use / sneak_use animation ──────
-			$holdAnim      = $props->getHoldAnimation();
-			$attackAnim    = $props->getAttackAnimation();
-			$useAnim       = $props->getUseAnimation();
-			$sneakUseAnim  = $props->getSneakUseAnimation();
-
-			if($holdAnim === "" && $attackAnim === "" && $useAnim === "" && $sneakUseAnim === ""){
+			$animations = $props->getAnimations();
+			if(count($animations) === 0){
 				continue;
 			}
 
 			$ns     = $props->getNamespace();
 			$safeId = str_replace(":", "_", $ns);
 
-			$animations    = [];
-			$scriptAnimate = [];
-
-			if($holdAnim !== ""){
-				$animations["hold"]  = $holdAnim;
-				$scriptAnimate[]     = "hold";
-			}
-			if($attackAnim !== ""){
-				$animations["attack"] = $attackAnim;
-				$scriptAnimate[]      = ["attack" => "query.is_attacking"];
-			}
-			if($useAnim !== ""){
-				$animations["use"] = $useAnim;
-				$scriptAnimate[]   = ["use" => "query.is_using_item"];
-			}
-			if($sneakUseAnim !== ""){
-				$animations["sneak_use"] = $sneakUseAnim;
-				$scriptAnimate[]         = ["sneak_use" => "query.is_sneaking && query.is_using_item"];
-			}
-
-			$attachable = [
-				"format_version"      => "1.10.0",
-				"minecraft:attachable" => [
-					"description" => [
-						"identifier"         => $ns,
-						"materials"          => ["default" => "entity_alphatest_glint"],
-						"textures"           => ["default" => "textures/items/{$props->getTexture()}"],
-						"geometry"           => ["default" => "geometry.humanoid.handheld"],
-						"animations"         => $animations,
-						"scripts"            => ["animate" => $scriptAnimate],
-						"render_controllers" => ["controller.render.item_default"],
-					],
-				],
-			];
-			$this->writeJson(Path::join($attachableDir, "{$safeId}.json"), $attachable);
-
-			// animation stub (기존 파일 덮어쓰지 않음)
-			$animPath = Path::join($animDir, "{$safeId}.animation.json");
-			if(!file_exists($animPath)){
-				$animEntries = [];
-				foreach($animations as $shortName => $animId){
-					$animEntries[$animId] = [
-						"loop"             => $shortName === "hold",
-						"animation_length" => 1.0,
-						"bones"            => new \stdClass(),
-					];
-				}
-				$this->writeJson($animPath, [
-					"format_version" => "1.8.0",
-					"animations"     => $animEntries,
-				]);
+			if($props->isArmor()){
+				$this->writeArmorAttachable($attachableDir, $animDir, $ns, $safeId, $props, $animations);
+			} else {
+				$this->writeRegularAttachable($attachableDir, $animDir, $ns, $safeId, $props, $animations);
 			}
 		}
 	}
 
 	/**
-	 * 방어구 wear_animation → armor attachable JSON + 애니메이션 스텁 생성.
-	 * armor_slot에 따라 올바른 humanoid.armor geometry를 사용.
+	 * 일반 아이템 attachable JSON + 애니메이션 스텁 생성.
+	 * $animations 키 순서 = Bedrock scripts.animate 순서.
+	 *
+	 * @param array<string, string> $animations
 	 */
-	private function writeArmorAttachable(string $attachableDir, string $animDir, CustomItemProperties $props) : void{
-		$ns     = $props->getNamespace();
-		$safeId = str_replace(":", "_", $ns);
-		$wearId = $props->getWearAnimation();
+	private function writeRegularAttachable(
+		string $attachableDir,
+		string $animDir,
+		string $ns,
+		string $safeId,
+		CustomItemProperties $props,
+		array $animations
+	) : void{
+		$scriptAnimate = $this->buildScriptAnimate($animations);
 
+		$attachable = [
+			"format_version"      => "1.10.0",
+			"minecraft:attachable" => [
+				"description" => [
+					"identifier"         => $ns,
+					"materials"          => ["default" => "entity_alphatest_glint"],
+					"textures"           => ["default" => "textures/items/{$props->getTexture()}"],
+					"geometry"           => ["default" => "geometry.humanoid.handheld"],
+					"animations"         => $animations,
+					"scripts"            => ["animate" => $scriptAnimate],
+					"render_controllers" => ["controller.render.item_default"],
+				],
+			],
+		];
+		$this->writeJson(Path::join($attachableDir, "{$safeId}.json"), $attachable);
+
+		// animation stub — 기존 파일 덮어쓰지 않음
+		$animPath = Path::join($animDir, "{$safeId}.animation.json");
+		if(!file_exists($animPath)){
+			$loopedTriggers = ["hold", "wear", "walk", "idle", "swim", "sneak", "sprint"];
+			$animEntries = [];
+			foreach($animations as $shortName => $animId){
+				$animEntries[$animId] = [
+					"loop"             => in_array($shortName, $loopedTriggers, true),
+					"animation_length" => 1.0,
+					"bones"            => new \stdClass(),
+				];
+			}
+			$this->writeJson($animPath, [
+				"format_version" => "1.8.0",
+				"animations"     => $animEntries,
+			]);
+		}
+	}
+
+	/**
+	 * 방어구 attachable JSON + 애니메이션 스텁 생성.
+	 * armor_slot에 따른 humanoid.armor geometry + armor 재질 사용.
+	 * $animations 키 순서 = Bedrock scripts.animate 순서.
+	 *
+	 * @param array<string, string> $animations
+	 */
+	private function writeArmorAttachable(
+		string $attachableDir,
+		string $animDir,
+		string $ns,
+		string $safeId,
+		CustomItemProperties $props,
+		array $animations
+	) : void{
 		$geometry = match($props->getArmorSlot()){
 			0 => "geometry.humanoid.armor.helmet",
 			1 => "geometry.humanoid.armor.chestplate",
@@ -599,6 +621,8 @@ final class ResourcePackBuilder{
 			default => "geometry.humanoid.armor.chestplate",
 		};
 
+		$scriptAnimate = $this->buildScriptAnimate($animations);
+
 		$attachable = [
 			"format_version"      => "1.10.0",
 			"minecraft:attachable" => [
@@ -606,12 +630,12 @@ final class ResourcePackBuilder{
 					"identifier"         => $ns,
 					"materials"          => ["default" => "armor", "enchanted" => "armor_enchanted"],
 					"textures"           => [
-						"default"    => "textures/items/{$props->getTexture()}",
-						"enchanted"  => "textures/misc/enchanted_item_glint",
+						"default"   => "textures/items/{$props->getTexture()}",
+						"enchanted" => "textures/misc/enchanted_item_glint",
 					],
 					"geometry"           => ["default" => $geometry],
-					"animations"         => ["wear" => $wearId],
-					"scripts"            => ["animate" => ["wear"]],
+					"animations"         => $animations,
+					"scripts"            => ["animate" => $scriptAnimate],
 					"render_controllers" => ["controller.render.armor"],
 				],
 			],
@@ -620,17 +644,40 @@ final class ResourcePackBuilder{
 
 		$animPath = Path::join($animDir, "{$safeId}.animation.json");
 		if(!file_exists($animPath)){
+			$animEntries = [];
+			foreach($animations as $animId){
+				$animEntries[$animId] = [
+					"loop"             => true,
+					"animation_length" => 1.0,
+					"bones"            => new \stdClass(),
+				];
+			}
 			$this->writeJson($animPath, [
 				"format_version" => "1.8.0",
-				"animations"     => [
-					$wearId => [
-						"loop"             => true,
-						"animation_length" => 1.0,
-						"bones"            => new \stdClass(),
-					],
-				],
+				"animations"     => $animEntries,
 			]);
 		}
+	}
+
+	/**
+	 * animations 맵에서 Bedrock scripts.animate 배열을 생성.
+	 * 배열 순서 = $animations 키 삽입 순서 (= config에 적힌 순서).
+	 * ANIMATION_CONDITIONS에 없는 키는 unconditional로 처리.
+	 *
+	 * @param  array<string, string>        $animations
+	 * @return array<int, string|array<string, string>>
+	 */
+	private function buildScriptAnimate(array $animations) : array{
+		$scriptAnimate = [];
+		foreach($animations as $shortName => $animId){
+			$condition = self::ANIMATION_CONDITIONS[$shortName] ?? null;
+			if($condition === null){
+				$scriptAnimate[] = $shortName;
+			} else {
+				$scriptAnimate[] = [$shortName => $condition];
+			}
+		}
+		return $scriptAnimate;
 	}
 
 	/**

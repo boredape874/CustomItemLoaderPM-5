@@ -15,7 +15,10 @@ use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerItemConsumeEvent;
 use pocketmine\event\player\PlayerItemUseEvent;
+use pocketmine\event\player\PlayerJumpEvent;
 use pocketmine\event\player\PlayerQuitEvent;
+use pocketmine\event\player\PlayerToggleSneakEvent;
+use pocketmine\event\player\PlayerToggleSprintEvent;
 use pocketmine\event\server\DataPacketSendEvent;
 use pocketmine\network\mcpe\protocol\AnimatePacket;
 use pocketmine\network\mcpe\protocol\ResourcePackStackPacket;
@@ -243,6 +246,60 @@ final class EventListener implements Listener{
 			return;
 		}
 		$event->setBurnTime($burnTime);
+	}
+
+	/**
+	 * Fired when a player jumps.
+	 * Triggers on_jump hooks for the held item.
+	 */
+	public function onPlayerJump(PlayerJumpEvent $event) : void{
+		$player = $event->getPlayer();
+		$item   = $player->getInventory()->getItemInHand();
+		if(!($item instanceof CustomItemInterface)){
+			return;
+		}
+		$hooks = $item->getProperties()->getOnJumpHooks();
+		if(count($hooks) > 0){
+			EventHookParser::execute($hooks, $player);
+		}
+	}
+
+	/**
+	 * Fired when a player starts or stops sprinting.
+	 * Triggers on_sprint hooks only on sprint-start.
+	 */
+	public function onPlayerToggleSprint(PlayerToggleSprintEvent $event) : void{
+		if(!$event->isSprinting()){
+			return; // 달리기 종료는 무시
+		}
+		$player = $event->getPlayer();
+		$item   = $player->getInventory()->getItemInHand();
+		if(!($item instanceof CustomItemInterface)){
+			return;
+		}
+		$hooks = $item->getProperties()->getOnSprintHooks();
+		if(count($hooks) > 0){
+			EventHookParser::execute($hooks, $player);
+		}
+	}
+
+	/**
+	 * Fired when a player starts or stops sneaking.
+	 * Triggers on_sneak hooks only on sneak-start.
+	 */
+	public function onPlayerToggleSneak(PlayerToggleSneakEvent $event) : void{
+		if(!$event->isSneaking()){
+			return; // 스니크 해제는 무시
+		}
+		$player = $event->getPlayer();
+		$item   = $player->getInventory()->getItemInHand();
+		if(!($item instanceof CustomItemInterface)){
+			return;
+		}
+		$hooks = $item->getProperties()->getOnSneakStartHooks();
+		if(count($hooks) > 0){
+			EventHookParser::execute($hooks, $player);
+		}
 	}
 
 	public function onPlayerQuit(PlayerQuitEvent $event) : void{
