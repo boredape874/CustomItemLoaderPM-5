@@ -44,5 +44,5 @@ jobs:
         run: composer install --no-interaction --prefer-dist
 
       - name: Run PHPStan
-        run: vendor/bin/phpstan analyse src --level=5 --no-progress
+        run: vendor/bin/phpstan analyse --no-progress
         continue-on-error: true

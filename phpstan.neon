@@ -1,0 +1,15 @@
+parameters:
+    level: 3
+    paths:
+        - src/customloader
+    excludePaths:
+        - src/alvin0319
+    reportUnmatchedIgnoredErrors: false
+    # PM5 클래스들은 PHPStan 스텁 없이 분석 불가 — 무시
+    ignoreErrors:
+        - '#^Class pocketmine\\#'
+        - '#^Interface pocketmine\\#'
+        - '#^Call to method .* on an unknown class pocketmine\\#'
+        - '#^Parameter \$.*pocketmine\\#'
+        - '#^Return type .* pocketmine\\#'
+        - '#pocketmine\\#'

@@ -1,0 +1,17 @@
+{
+    "name": "customloader/customloader",
+    "description": "Custom item, block and entity loader for PocketMine-MP 5",
+    "type": "library",
+    "license": "GPL-3.0-or-later",
+    "require": {
+        "php": "^8.1"
+    },
+    "require-dev": {
+        "phpstan/phpstan": "^1.10"
+    },
+    "autoload": {
+        "psr-4": {
+            "customloader\\": "src/customloader/"
+        }
+    }
+}
