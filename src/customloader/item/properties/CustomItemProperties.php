@@ -19,7 +19,6 @@ use InvalidArgumentException;
 use pocketmine\block\BlockToolType;
 use pocketmine\data\bedrock\item\upgrade\LegacyItemIdToStringIdMap;
 use pocketmine\inventory\ArmorInventory;
-use pocketmine\item\Item;
 use pocketmine\item\ItemTypeIds;
 use pocketmine\nbt\tag\ByteTag;
 use pocketmine\nbt\tag\CompoundTag;
@@ -35,26 +34,25 @@ final class CustomItemProperties{
 	protected string $texture;
 	protected int $runtimeId;
 	protected bool $durable = false;
-	protected ?int $max_durability = null;
-	protected bool $allow_off_hand = false;
-	protected bool $can_destroy_in_creative = false;
-	protected int $creative_category = 1;
-	protected bool $hand_equipped = true;
-	protected int $max_stack_size = 64;
-	protected float $mining_speed = 1;
+	protected ?int $maxDurability = null;
+	protected bool $allowOffHand = false;
+	protected bool $canDestroyInCreative = false;
+	protected int $creativeCategory = 1;
+	protected bool $handEquipped = true;
+	protected int $maxStackSize = 64;
+	protected float $miningSpeed = 1;
 	protected bool $food = false;
-	protected bool $can_always_eat = false;
+	protected bool $canAlwaysEat = false;
 	protected ?int $nutrition = null;
 	protected ?float $saturation = null;
-	protected ?Item $residue = null;
 	protected bool $armor = false;
-	protected int $defence_points;
+	protected int $defencePoints = 0;
 	protected bool $tool = false;
 	protected int $toolType = BlockToolType::NONE;
 	protected int $toolTier = 0;
-	protected bool $add_creative_inventory = false;
-	protected int $attack_points = 0;
-	protected int $foil;
+	protected bool $addCreativeInventory = false;
+	protected int $attackPoints = 0;
+	protected bool $foil = false;
 	protected int $armorSlot = ArmorInventory::SLOT_HEAD;
 	private int $cooldown = 0;
 
@@ -191,6 +189,7 @@ final class CustomItemProperties{
 			$this->armor = true;
 		}
 		if(isset($data["foil"])){
+			$this->foil = true;
 			$itemPropertiesComponent->addComponent("foil", $trueTag);
 		}
 		if(isset($data["add_creative_inventory"])){
@@ -320,7 +319,6 @@ final class CustomItemProperties{
 	public function getNutrition() : ?int{ return $this->nutrition; }
 	public function getSaturation() : ?float{ return $this->saturation; }
 	public function getCanAlwaysEat() : bool{ return $this->can_always_eat; }
-	public function getResidue() : ?Item{ return $this->residue; }
 	public function isDurable() : bool{ return $this->durable; }
 	public function getMaxDurability() : int{ return $this->max_durability ?? 64; }
 	public function isArmor() : bool{ return $this->armor; }
@@ -332,12 +330,12 @@ final class CustomItemProperties{
 	public function getAttackPoints() : int{ return $this->attack_points; }
 	public function getArmorSlot() : int{ return $this->armorSlot; }
 	public function getCooldown() : int{ return $this->cooldown; }
-	public function getFoil() : bool{ return $this->foil === 1; }
+	public function getFoil() : bool{ return $this->foil; }
 	public function setBlockToolType(int $toolType) : void{ $this->toolType = $toolType; }
 	public function setBlockToolHarvestLevel(int $toolTier) : void{ $this->toolTier = $toolTier; }
 	public function setTool(bool $tool) : void{ $this->tool = $tool; }
-	public function setAddCreativeInventory(bool $add_creative_inventory) : void{ $this->add_creative_inventory = $add_creative_inventory; }
-	public function setAttackPoints(int $attack_points) : void{ $this->attack_points = $attack_points; }
+	public function setAddCreativeInventory(bool $addCreativeInventory) : void{ $this->add_creative_inventory = $addCreativeInventory; }
+	public function setAttackPoints(int $attackPoints) : void{ $this->attack_points = $attackPoints; }
 
 	/** @return EventAction[] */
 	public function getOnUseHooks() : array{ return $this->onUseHooks; }

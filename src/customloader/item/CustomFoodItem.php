@@ -6,6 +6,7 @@ namespace customloader\item;
 
 use pocketmine\item\Food;
 use pocketmine\item\Item;
+use pocketmine\item\VanillaItems;
 
 class CustomFoodItem extends Food implements CustomItemInterface{
 	use CustomItemTrait;
@@ -27,6 +28,8 @@ class CustomFoodItem extends Food implements CustomItemInterface{
 	}
 
 	public function getResidue() : Item{
-		return $this->getProperties()->getResidue();
+		// Custom food items leave no residue item by default.
+		// Override this class to customize (e.g., empty bowl after stew).
+		return VanillaItems::AIR();
 	}
 }

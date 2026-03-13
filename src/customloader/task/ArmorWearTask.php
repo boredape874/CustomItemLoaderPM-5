@@ -5,12 +5,7 @@ declare(strict_types=1);
 namespace customloader\task;
 
 use customloader\item\CustomItemInterface;
-use pocketmine\math\Vector3;
-use pocketmine\network\mcpe\protocol\SpawnParticleEffectPacket;
-use pocketmine\scheduler\Task;
-use pocketmine\Server;
-use function count;
-use function in_array;
+use pocketmine\player\Player;
 
 /**
  * 커스텀 방어구의 wear_particle 기능:
@@ -24,60 +19,20 @@ use function in_array;
  *       wear_particle: "mypack:fire_aura"
  *       wear_particle_interval: 15
  *
- * @param string[] $disabledWorlds 파티클을 비활성화할 월드 폴더명 목록
+ * @see AbstractParticleTask  for tick management and world filtering
  */
-final class ArmorWearTask extends Task{
+final class ArmorWearTask extends AbstractParticleTask{
 
-	private int $tick = 0;
-	private bool $hasDisabledWorlds;
-
-	/** @param string[] $disabledWorlds */
-	public function __construct(private array $disabledWorlds = []){
-		$this->hasDisabledWorlds = count($disabledWorlds) > 0;
-	}
-
-	public function onRun() : void{
-		++$this->tick;
-
-		foreach(Server::getInstance()->getOnlinePlayers() as $player){
-			if($this->hasDisabledWorlds
-				&& in_array($player->getWorld()->getFolderName(), $this->disabledWorlds, true)){
+	protected function getParticleData(Player $player) : array{
+		$armorInv = $player->getArmorInventory();
+		$result   = [];
+		foreach([$armorInv->getHelmet(), $armorInv->getChestplate(), $armorInv->getLeggings(), $armorInv->getBoots()] as $item){
+			if(!($item instanceof CustomItemInterface)){
 				continue;
 			}
-			$armorInv = $player->getArmorInventory();
-			$slots    = [
-				$armorInv->getHelmet(),
-				$armorInv->getChestplate(),
-				$armorInv->getLeggings(),
-				$armorInv->getBoots(),
-			];
-
-			foreach($slots as $item){
-				if(!($item instanceof CustomItemInterface)){
-					continue;
-				}
-
-				$props    = $item->getProperties();
-				$particle = $props->getWearParticle();
-				if($particle === ""){
-					continue;
-				}
-
-				$interval = $props->getWearParticleInterval();
-				if($this->tick % $interval !== 0){
-					continue;
-				}
-
-				$pos    = $player->getPosition();
-				$packet = SpawnParticleEffectPacket::create(
-					0,   // dimension (0 = overworld)
-					-1,  // entityUniqueId (-1 = absolute position)
-					new Vector3($pos->getX(), $pos->getY() + 1.5, $pos->getZ()),
-					$particle,
-					null
-				);
-				$player->getNetworkSession()->sendDataPacket($packet);
-			}
+			$props    = $item->getProperties();
+			$result[] = [$props->getWearParticle(), $props->getWearParticleInterval(), 1.5];
 		}
+		return $result;
 	}
 }

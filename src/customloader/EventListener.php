@@ -16,7 +16,7 @@ use pocketmine\event\player\PlayerInteractEvent;
 use pocketmine\event\player\PlayerItemConsumeEvent;
 use pocketmine\event\player\PlayerItemUseEvent;
 use pocketmine\event\player\PlayerJumpEvent;
-use pocketmine\event\player\PlayerQuitEvent;
+
 use pocketmine\event\player\PlayerToggleSneakEvent;
 use pocketmine\event\player\PlayerToggleSprintEvent;
 use pocketmine\event\server\DataPacketSendEvent;
@@ -34,17 +34,20 @@ use function usort;
 
 final class EventListener implements Listener{
 
+	/** Bedrock experiment flags required to use custom items, blocks, and entities */
+	private const EXPERIMENTS = [
+		"data_driven_items"              => true,
+		"data_driven_biomes"             => false,
+		"upcoming_creator_features"      => false,
+		"gametest"                       => false,
+		"experimental_molang_features"   => false,
+	];
+
 	public function onDataPacketSend(DataPacketSendEvent $event) : void{
 		$packets = $event->getPackets();
 		foreach($packets as $packet){
 			if($packet instanceof StartGamePacket){
-				$packet->levelSettings->experiments = new Experiments([
-					"data_driven_items" => true,
-					"data_driven_biomes" => false,
-					"upcoming_creator_features" => false,
-					"gametest" => false,
-					"experimental_molang_features" => false,
-				], true);
+				$packet->levelSettings->experiments = new Experiments(self::EXPERIMENTS, true);
 
 				// Inject custom block palette entries
 				$customEntries = CustomBlockManager::getInstance()->getPaletteEntries();
@@ -58,13 +61,7 @@ final class EventListener implements Listener{
 					);
 				}
 			}elseif($packet instanceof ResourcePackStackPacket){
-				$packet->experiments = new Experiments([
-					"data_driven_items" => true,
-					"data_driven_biomes" => false,
-					"upcoming_creator_features" => false,
-					"gametest" => false,
-					"experimental_molang_features" => false,
-				], true);
+				$packet->experiments = new Experiments(self::EXPERIMENTS, true);
 			}
 		}
 	}
@@ -302,7 +299,4 @@ final class EventListener implements Listener{
 		}
 	}
 
-	public function onPlayerQuit(PlayerQuitEvent $event) : void{
-		// reserved for future use
-	}
 }
