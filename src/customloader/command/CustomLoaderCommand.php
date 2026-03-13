@@ -14,7 +14,6 @@ use pocketmine\command\CommandSender;
 use pocketmine\command\utils\InvalidCommandSyntaxException;
 use pocketmine\plugin\PluginOwned;
 use pocketmine\plugin\PluginOwnedTrait;
-use Symfony\Component\Filesystem\Path;
 use function array_shift;
 use function array_values;
 use function count;

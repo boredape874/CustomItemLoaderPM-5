@@ -329,3 +329,27 @@ particles: {}
 #  magic_sparkle:
 #    texture: "particles/magic_sparkle"
 #    count: 5
+
+
+# ══════════════════════════════════
+#  ⚙️  PERFORMANCE (성능 설정)
+# ══════════════════════════════════
+performance:
+  # 아이템을 들고 있을 때 파티클 태스크 활성화
+  # hold_particle 이 설정된 아이템이 없으면 자동으로 등록되지 않음
+  hold_particle: true
+
+  # 방어구 착용 중 파티클 태스크 활성화
+  # wear_particle 이 설정된 아이템이 없으면 자동으로 등록되지 않음
+  wear_particle: true
+
+  # 엔티티 자동 스폰 태스크 활성화
+  entity_spawn: true
+
+  # 엔티티 자동 스폰 주기 (틱, 최솟값 20 = 1초, 기본값 400 = 20초)
+  entity_spawn_interval: 400
+
+  # 파티클 태스크를 완전히 비활성화할 월드 폴더명 목록
+  # 예: [world_nether, world_the_end]
+  # 빈 배열이면 모든 월드에서 실행
+  particle_disabled_worlds: []

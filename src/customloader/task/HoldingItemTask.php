@@ -9,6 +9,8 @@ use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\SpawnParticleEffectPacket;
 use pocketmine\scheduler\Task;
 use pocketmine\Server;
+use function count;
+use function in_array;
 
 /**
  * 커스텀 아이템의 hold_particle 기능:
@@ -17,15 +19,24 @@ use pocketmine\Server;
  * Config 예:
  *   hold_particle: "mypack:fire_aura"
  *   hold_particle_interval: 10   # 틱 (기본 20 = 1초)
+ *
+ * @param string[] $disabledWorlds 파티클을 비활성화할 월드 폴더명 목록
  */
 final class HoldingItemTask extends Task{
 
 	private int $tick = 0;
 
+	/** @param string[] $disabledWorlds */
+	public function __construct(private array $disabledWorlds = []){}
+
 	public function onRun() : void{
 		++$this->tick;
 
 		foreach(Server::getInstance()->getOnlinePlayers() as $player){
+			if(count($this->disabledWorlds) > 0
+				&& in_array($player->getWorld()->getFolderName(), $this->disabledWorlds, true)){
+				continue;
+			}
 			$item = $player->getInventory()->getItemInHand();
 			if(!($item instanceof CustomItemInterface)){
 				continue;

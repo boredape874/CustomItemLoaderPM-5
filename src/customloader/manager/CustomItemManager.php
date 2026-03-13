@@ -131,13 +131,25 @@ final class CustomItemManager{
 			$deserializeCallback ?? static fn(SavedItemData $_) => clone $item
 		);
 
-		// ItemTypeDictionary has no public API — closure hack is still required
-		$dictionary = TypeConverter::getInstance()->getItemTypeDictionary();
-		(function() use ($item, $runtimeId, $namespace) : void{
-			$this->stringToIntMap[$namespace] = $runtimeId;
-			$this->intToStringIdMap[$runtimeId] = $namespace;
-			$nbt = in_array(CustomItemTrait::class, class_uses($item), true) ? $item->getProperties()->getNbt() : CompoundTag::create();
-			$this->itemTypes[] = new ItemTypeEntry($namespace, $runtimeId, true, 1, new CacheableNbt($nbt));
-		})->call($dictionary);
+		// ItemTypeDictionary has no public API — closure hack required (PM5 5.x).
+		// Wrapped in try/catch: if PM5 renames internal fields this item fails
+		// gracefully (logged as an error) rather than crashing the plugin.
+		try{
+			$dictionary = TypeConverter::getInstance()->getItemTypeDictionary();
+			(function() use ($item, $runtimeId, $namespace) : void{
+				$this->stringToIntMap[$namespace] = $runtimeId;
+				$this->intToStringIdMap[$runtimeId] = $namespace;
+				$nbt = in_array(CustomItemTrait::class, class_uses($item), true) ? $item->getProperties()->getNbt() : CompoundTag::create();
+				$this->itemTypes[] = new ItemTypeEntry($namespace, $runtimeId, true, 1, new CacheableNbt($nbt));
+			})->call($dictionary);
+		}catch(\Throwable $e){
+			throw new \RuntimeException(
+				"TypeConverter dictionary hack failed for '{$namespace}'" .
+				" — PM5 internal API may have changed. Item will NOT be visible to clients." .
+				" Original: " . $e->getMessage(),
+				0,
+				$e
+			);
+		}
 	}
 }

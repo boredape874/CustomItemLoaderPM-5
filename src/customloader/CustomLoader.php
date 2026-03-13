@@ -20,7 +20,6 @@ use customloader\task\HoldingItemTask;
 use pocketmine\plugin\PluginBase;
 use pocketmine\utils\SingletonTrait;
 use RuntimeException;
-use Symfony\Component\Filesystem\Path;
 use function count;
 use function is_dir;
 use function mkdir;
@@ -129,12 +128,17 @@ class CustomLoader extends PluginBase{
 			$this->getLogger()->warning("Failed to load custom particles: " . $e->getMessage());
 		}
 
+		// ── 성능 설정 읽기 ───────────────────────────────────────────────────
+		$perf          = (array) $this->getConfig()->get("performance", []);
+		$spawnInterval = max(20, (int) ($perf["entity_spawn_interval"] ?? 400));
+		$disabledWorlds = (array) ($perf["particle_disabled_worlds"] ?? []);
+
 		// ── 스폰 규칙 스케줄러 ───────────────────────────────────────────────
 		$spawnRules = CustomEntityManager::getInstance()->getSpawnRules();
-		if(count($spawnRules) > 0){
+		if(($perf["entity_spawn"] ?? true) && count($spawnRules) > 0){
 			$this->getScheduler()->scheduleRepeatingTask(
 				new EntitySpawnTask($spawnRules),
-				400 // every 20 seconds
+				$spawnInterval
 			);
 			$this->getLogger()->info("Registered " . count($spawnRules) . " entity spawn rule(s).");
 		}
@@ -151,11 +155,11 @@ class CustomLoader extends PluginBase{
 			if($props->getWearParticle() !== "") $hasWearParticle = true;
 			if($hasHoldParticle && $hasWearParticle) break;
 		}
-		if($hasHoldParticle){
-			$this->getScheduler()->scheduleRepeatingTask(new HoldingItemTask(), 1);
+		if(($perf["hold_particle"] ?? true) && $hasHoldParticle){
+			$this->getScheduler()->scheduleRepeatingTask(new HoldingItemTask($disabledWorlds), 1);
 		}
-		if($hasWearParticle){
-			$this->getScheduler()->scheduleRepeatingTask(new ArmorWearTask(), 1);
+		if(($perf["wear_particle"] ?? true) && $hasWearParticle){
+			$this->getScheduler()->scheduleRepeatingTask(new ArmorWearTask($disabledWorlds), 1);
 		}
 
 		$this->getServer()->getPluginManager()->registerEvents(new EventListener(), $this);
@@ -166,6 +170,6 @@ class CustomLoader extends PluginBase{
 	}
 
 	public function getResourcePackFolder() : string{
-		return Path::join($this->getDataFolder(), "resource_packs");
+		return $this->getDataFolder() . "resource_packs";
 	}
 }

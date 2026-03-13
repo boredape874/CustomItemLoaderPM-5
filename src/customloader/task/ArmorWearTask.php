@@ -9,6 +9,8 @@ use pocketmine\math\Vector3;
 use pocketmine\network\mcpe\protocol\SpawnParticleEffectPacket;
 use pocketmine\scheduler\Task;
 use pocketmine\Server;
+use function count;
+use function in_array;
 
 /**
  * 커스텀 방어구의 wear_particle 기능:
@@ -21,15 +23,24 @@ use pocketmine\Server;
  *       armor_slot: chest
  *       wear_particle: "mypack:fire_aura"
  *       wear_particle_interval: 15
+ *
+ * @param string[] $disabledWorlds 파티클을 비활성화할 월드 폴더명 목록
  */
 final class ArmorWearTask extends Task{
 
 	private int $tick = 0;
 
+	/** @param string[] $disabledWorlds */
+	public function __construct(private array $disabledWorlds = []){}
+
 	public function onRun() : void{
 		++$this->tick;
 
 		foreach(Server::getInstance()->getOnlinePlayers() as $player){
+			if(count($this->disabledWorlds) > 0
+				&& in_array($player->getWorld()->getFolderName(), $this->disabledWorlds, true)){
+				continue;
+			}
 			$armorInv = $player->getArmorInventory();
 			$slots    = [
 				$armorInv->getHelmet(),

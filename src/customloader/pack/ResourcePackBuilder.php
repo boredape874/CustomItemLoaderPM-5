@@ -8,29 +8,34 @@ use customloader\block\properties\CustomBlockProperties;
 use customloader\entity\CustomEntityProperties;
 use customloader\item\properties\CustomItemProperties;
 use pocketmine\network\mcpe\protocol\ProtocolInfo;
-use Ramsey\Uuid\Uuid;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
 use SplFileInfo;
-use Symfony\Component\Filesystem\Path;
 use ZipArchive;
 use function array_merge;
+use function bin2hex;
+use function chr;
 use function count;
 use function explode;
 use function file_exists;
-use function in_array;
 use function file_get_contents;
 use function file_put_contents;
 use function implode;
+use function in_array;
 use function is_array;
 use function is_dir;
 use function json_encode;
 use function method_exists;
 use function mkdir;
+use function ord;
 use function preg_replace;
+use function random_bytes;
+use function rtrim;
 use function sprintf;
 use function str_replace;
+use function str_split;
+use function vsprintf;
 
 final class ResourcePackBuilder{
 
@@ -62,8 +67,8 @@ final class ResourcePackBuilder{
 		private string $baseDir,
 		private string $packName
 	){
-		$this->rpDir = Path::join($baseDir, "resource_packs", $packName);
-		$this->bpDir = Path::join($baseDir, "behavior_packs", $packName);
+		$this->rpDir = self::pathJoin($baseDir, "resource_packs", $packName);
+		$this->bpDir = self::pathJoin($baseDir, "behavior_packs", $packName);
 	}
 
 	public function resourcePackExists() : bool{ return is_dir($this->rpDir); }
@@ -115,21 +120,21 @@ final class ResourcePackBuilder{
 	private function createDirectories() : void{
 		$dirs = [
 			$this->rpDir,
-			Path::join($this->rpDir, "textures", "items"),
-			Path::join($this->rpDir, "textures", "blocks"),
-			Path::join($this->rpDir, "textures", "entity"),
-			Path::join($this->rpDir, "textures", "particles"),
-			Path::join($this->rpDir, "models", "entity"),
-			Path::join($this->rpDir, "entity"),
-			Path::join($this->rpDir, "texts"),
-			Path::join($this->rpDir, "sounds"),
-			Path::join($this->rpDir, "particles"),
-			Path::join($this->rpDir, "animations"),
-			Path::join($this->rpDir, "animation_controllers"),
-			Path::join($this->rpDir, "attachables"),
+			self::pathJoin($this->rpDir, "textures", "items"),
+			self::pathJoin($this->rpDir, "textures", "blocks"),
+			self::pathJoin($this->rpDir, "textures", "entity"),
+			self::pathJoin($this->rpDir, "textures", "particles"),
+			self::pathJoin($this->rpDir, "models", "entity"),
+			self::pathJoin($this->rpDir, "entity"),
+			self::pathJoin($this->rpDir, "texts"),
+			self::pathJoin($this->rpDir, "sounds"),
+			self::pathJoin($this->rpDir, "particles"),
+			self::pathJoin($this->rpDir, "animations"),
+			self::pathJoin($this->rpDir, "animation_controllers"),
+			self::pathJoin($this->rpDir, "attachables"),
 			$this->bpDir,
-			Path::join($this->bpDir, "blocks"),
-			Path::join($this->bpDir, "entities"),
+			self::pathJoin($this->bpDir, "blocks"),
+			self::pathJoin($this->bpDir, "entities"),
 		];
 		foreach($dirs as $dir){
 			if(!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)){
@@ -145,7 +150,7 @@ final class ResourcePackBuilder{
 			"header" => [
 				"description" => $description,
 				"name" => $this->packName,
-				"uuid" => Uuid::uuid4()->toString(),
+				"uuid" => self::generateUuid(),
 				"version" => [0, 0, 1],
 				"min_engine_version" => [(int) $protocolParts[0], (int) $protocolParts[1], (int) $protocolParts[2]],
 			],
@@ -153,12 +158,12 @@ final class ResourcePackBuilder{
 				[
 					"description" => $description,
 					"type" => $type,
-					"uuid" => Uuid::uuid4()->toString(),
+					"uuid" => self::generateUuid(),
 					"version" => [0, 0, 1],
 				],
 			],
 		];
-		$this->writeJson(Path::join($packDir, "manifest.json"), $manifest);
+		$this->writeJson(self::pathJoin($packDir, "manifest.json"), $manifest);
 	}
 
 	/** @param CustomItemProperties[] $items */
@@ -169,7 +174,7 @@ final class ResourcePackBuilder{
 			$textureName = str_replace(":", "_", $texture);
 			$textureData[$textureName] = ["textures" => "textures/items/{$props->getTexture()}"];
 		}
-		$this->writeJson(Path::join($this->rpDir, "textures", "item_texture.json"), [
+		$this->writeJson(self::pathJoin($this->rpDir, "textures", "item_texture.json"), [
 			"resource_pack_name" => "vanilla",
 			"texture_name" => "atlas.items",
 			"texture_data" => $textureData,
@@ -182,7 +187,7 @@ final class ResourcePackBuilder{
 		foreach($blocks as $props){
 			$textureData[$props->getTexture()] = ["textures" => "textures/blocks/{$props->getTexture()}"];
 		}
-		$this->writeJson(Path::join($this->rpDir, "textures", "terrain_texture.json"), [
+		$this->writeJson(self::pathJoin($this->rpDir, "textures", "terrain_texture.json"), [
 			"resource_pack_name" => "vanilla",
 			"texture_name" => "atlas.terrain",
 			"texture_data" => $textureData,
@@ -205,7 +210,7 @@ final class ResourcePackBuilder{
 		foreach($entities as $props){
 			$lines[] = "entity.{$props->getNamespace()}.name={$props->getName()}";
 		}
-		file_put_contents(Path::join($this->rpDir, "texts", "en_US.lang"), implode("\n", $lines));
+		file_put_contents(self::pathJoin($this->rpDir, "texts", "en_US.lang"), implode("\n", $lines));
 	}
 
 	/**
@@ -220,7 +225,7 @@ final class ResourcePackBuilder{
 	 * @param array<string, mixed> $sounds
 	 */
 	public function writeSoundFiles(array $sounds) : void{
-		$soundDir = Path::join($this->rpDir, "sounds");
+		$soundDir = self::pathJoin($this->rpDir, "sounds");
 		if(!is_dir($soundDir) && !mkdir($soundDir, 0777, true) && !is_dir($soundDir)){
 			throw new RuntimeException(sprintf('Directory "%s" was not created', $soundDir));
 		}
@@ -235,7 +240,7 @@ final class ResourcePackBuilder{
 			];
 		}
 
-		$this->writeJson(Path::join($soundDir, "sound_definitions.json"), [
+		$this->writeJson(self::pathJoin($soundDir, "sound_definitions.json"), [
 			"sound_definitions" => $definitions,
 		]);
 	}
@@ -252,7 +257,7 @@ final class ResourcePackBuilder{
 	 * @param array<string, mixed> $particles
 	 */
 	public function writeParticleFiles(array $particles) : void{
-		$particleDir = Path::join($this->rpDir, "particles");
+		$particleDir = self::pathJoin($this->rpDir, "particles");
 		if(!is_dir($particleDir) && !mkdir($particleDir, 0777, true) && !is_dir($particleDir)){
 			throw new RuntimeException(sprintf('Directory "%s" was not created', $particleDir));
 		}
@@ -287,7 +292,7 @@ final class ResourcePackBuilder{
 				],
 			];
 
-			$this->writeJson(Path::join($particleDir, "{$safeId}.particle.json"), $def);
+			$this->writeJson(self::pathJoin($particleDir, "{$safeId}.particle.json"), $def);
 		}
 	}
 
@@ -307,8 +312,8 @@ final class ResourcePackBuilder{
 	 * @param CustomEntityProperties[] $entities
 	 */
 	public function writeAnimationFiles(array $entities) : void{
-		$animDir = Path::join($this->rpDir, "animations");
-		$controllerDir = Path::join($this->rpDir, "animation_controllers");
+		$animDir = self::pathJoin($this->rpDir, "animations");
+		$controllerDir = self::pathJoin($this->rpDir, "animation_controllers");
 
 		foreach([$animDir, $controllerDir] as $dir){
 			if(!is_dir($dir) && !mkdir($dir, 0777, true) && !is_dir($dir)){
@@ -338,7 +343,7 @@ final class ResourcePackBuilder{
 					"bones" => new \stdClass(),
 				];
 			}
-			$this->writeJson(Path::join($animDir, "{$safeId}.animation.json"), [
+			$this->writeJson(self::pathJoin($animDir, "{$safeId}.animation.json"), [
 				"format_version" => "1.8.0",
 				"animations" => $animEntries,
 			]);
@@ -368,7 +373,7 @@ final class ResourcePackBuilder{
 					],
 				],
 			];
-			$this->writeJson(Path::join($controllerDir, "{$safeId}.animation_controller.json"), $controllerDef);
+			$this->writeJson(self::pathJoin($controllerDir, "{$safeId}.animation_controller.json"), $controllerDef);
 		}
 	}
 
@@ -422,7 +427,7 @@ final class ResourcePackBuilder{
 					"description" => $description,
 				],
 			];
-			$this->writeJson(Path::join($this->rpDir, "entity", "{$safeId}.entity.json"), $def);
+			$this->writeJson(self::pathJoin($this->rpDir, "entity", "{$safeId}.entity.json"), $def);
 		}
 	}
 
@@ -446,7 +451,7 @@ final class ResourcePackBuilder{
 					"components" => $components,
 				],
 			];
-			$this->writeJson(Path::join($this->bpDir, "blocks", "{$safeId}.json"), $def);
+			$this->writeJson(self::pathJoin($this->bpDir, "blocks", "{$safeId}.json"), $def);
 		}
 	}
 
@@ -475,7 +480,7 @@ final class ResourcePackBuilder{
 					"events" => new \stdClass(),
 				],
 			];
-			$this->writeJson(Path::join($this->bpDir, "entities", "{$safeId}.json"), $def);
+			$this->writeJson(self::pathJoin($this->bpDir, "entities", "{$safeId}.json"), $def);
 		}
 	}
 
@@ -527,8 +532,8 @@ final class ResourcePackBuilder{
 	 * @param CustomItemProperties[] $items
 	 */
 	public function writeItemAttachableFiles(array $items) : void{
-		$attachableDir = Path::join($this->rpDir, "attachables");
-		$animDir       = Path::join($this->rpDir, "animations");
+		$attachableDir = self::pathJoin($this->rpDir, "attachables");
+		$animDir       = self::pathJoin($this->rpDir, "animations");
 
 		foreach($items as $props){
 			$animations = $props->getAnimations();
@@ -577,10 +582,10 @@ final class ResourcePackBuilder{
 				],
 			],
 		];
-		$this->writeJson(Path::join($attachableDir, "{$safeId}.json"), $attachable);
+		$this->writeJson(self::pathJoin($attachableDir, "{$safeId}.json"), $attachable);
 
 		// animation stub — 기존 파일 덮어쓰지 않음
-		$animPath = Path::join($animDir, "{$safeId}.animation.json");
+		$animPath = self::pathJoin($animDir, "{$safeId}.animation.json");
 		if(!file_exists($animPath)){
 			$loopedTriggers = ["hold", "wear", "walk", "idle", "swim", "sneak", "sprint"];
 			$animEntries = [];
@@ -640,9 +645,9 @@ final class ResourcePackBuilder{
 				],
 			],
 		];
-		$this->writeJson(Path::join($attachableDir, "{$safeId}.json"), $attachable);
+		$this->writeJson(self::pathJoin($attachableDir, "{$safeId}.json"), $attachable);
 
-		$animPath = Path::join($animDir, "{$safeId}.animation.json");
+		$animPath = self::pathJoin($animDir, "{$safeId}.animation.json");
 		if(!file_exists($animPath)){
 			$animEntries = [];
 			foreach($animations as $animId){
@@ -684,7 +689,7 @@ final class ResourcePackBuilder{
 	 * Adds a single item texture entry to an existing pack.
 	 */
 	public function addItemEntry(string $name, string $namespace, string $texture) : void{
-		$path = Path::join($this->rpDir, "textures", "item_texture.json");
+		$path = self::pathJoin($this->rpDir, "textures", "item_texture.json");
 		$data = $this->readJson($path) ?? [
 			"resource_pack_name" => "vanilla",
 			"texture_name" => "atlas.items",
@@ -693,9 +698,35 @@ final class ResourcePackBuilder{
 		$data["texture_data"][$name] = ["textures" => "textures/items/{$texture}"];
 		$this->writeJson($path, $data);
 
-		$langPath = Path::join($this->rpDir, "texts", "en_US.lang");
+		$langPath = self::pathJoin($this->rpDir, "texts", "en_US.lang");
 		$existing = file_get_contents($langPath);
 		file_put_contents($langPath, $existing . "\nitem.{$namespace}={$name}");
+	}
+
+	/**
+	 * Joins path segments using forward slashes, trimming trailing slashes.
+	 * Replaces Symfony\Component\Filesystem\Path::join().
+	 */
+	private static function pathJoin(string ...$parts) : string{
+		$normalized = [];
+		foreach($parts as $part){
+			$part = rtrim(str_replace('\\', '/', $part), '/');
+			if($part !== ''){
+				$normalized[] = $part;
+			}
+		}
+		return implode('/', $normalized);
+	}
+
+	/**
+	 * Generates a random UUID v4 string.
+	 * Replaces Ramsey\Uuid\Uuid::uuid4()->toString().
+	 */
+	private static function generateUuid() : string{
+		$data = random_bytes(16);
+		$data[6] = chr(ord($data[6]) & 0x0f | 0x40); // version 4
+		$data[8] = chr(ord($data[8]) & 0x3f | 0x80); // variant RFC 4122
+		return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 	}
 
 	private function writeJson(string $path, mixed $data) : void{
