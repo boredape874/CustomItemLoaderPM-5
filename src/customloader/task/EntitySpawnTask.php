@@ -13,8 +13,12 @@ use pocketmine\scheduler\Task;
 use pocketmine\Server;
 use pocketmine\world\Location;
 use pocketmine\world\World;
+use function array_key_last;
+use function cos;
 use function count;
+use function deg2rad;
 use function mt_rand;
+use function sin;
 
 /**
  * Periodically attempts to spawn custom entities in loaded worlds.
@@ -213,7 +217,8 @@ final class EntitySpawnTask extends Task{
 			}
 		}
 		// Fallback (should not be reached)
-		return $rules[array_key_last($rules)];
+		$lastKey = array_key_last($rules);
+		return $lastKey !== null ? $rules[$lastKey] : null;
 	}
 
 	/**

@@ -29,15 +29,18 @@ use function in_array;
 final class ArmorWearTask extends Task{
 
 	private int $tick = 0;
+	private bool $hasDisabledWorlds;
 
 	/** @param string[] $disabledWorlds */
-	public function __construct(private array $disabledWorlds = []){}
+	public function __construct(private array $disabledWorlds = []){
+		$this->hasDisabledWorlds = count($disabledWorlds) > 0;
+	}
 
 	public function onRun() : void{
 		++$this->tick;
 
 		foreach(Server::getInstance()->getOnlinePlayers() as $player){
-			if(count($this->disabledWorlds) > 0
+			if($this->hasDisabledWorlds
 				&& in_array($player->getWorld()->getFolderName(), $this->disabledWorlds, true)){
 				continue;
 			}

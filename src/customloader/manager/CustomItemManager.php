@@ -65,7 +65,7 @@ final class CustomItemManager{
 			$this->byNamespace[$namespace] = $item;
 			$this->internalRegisterItem(clone $item, $runtimeId, true, $namespace);
 		}catch(Throwable $e){
-			throw new \InvalidArgumentException("Failed to register item: " . $e->getMessage(), $e->getLine(), $e);
+			throw new \InvalidArgumentException("Failed to register item: " . $e->getMessage(), 0, $e);
 		}
 	}
 
